@@ -3,8 +3,9 @@
 import EmployeeHeader from "@/components/layout/EmployeeHeader";
 import Link from "next/link";
 import PillSelect from "@/components/ui/PillSelect";
+import { useEmployee } from "@/context/EmployeeContext";
 import { employeeNavigation } from "@/config/employeeNavigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Bell,
   CalendarDays,
@@ -77,13 +78,6 @@ type CreativeTask = {
 type StatusFilter = "All Statuses" | TaskStatus;
 
 type DayFilter = "All Days" | WeekDay;
-
-const currentUser = {
-  name: "Abdullah Naeem",
-  initials: "AN",
-  role: "Graphic Designer",
-  department: "Graphic Design" as Department,
-};
 
 const navigation = employeeNavigation;
 
@@ -221,6 +215,90 @@ const initialTasks: CreativeTask[] = [
     description:
       "Edit a 30-second reel explaining how automation reduces manual work.",
   },
+  {
+    id: 8,
+    brand: "Solentrix",
+    title: "Residential Solar Promo Reel",
+    department: "Video Editing",
+    contentType: "Reel",
+    platforms: ["Instagram", "TikTok"],
+    day: "Monday",
+    deadline: "Monday, 4:30 PM",
+    status: "Approved",
+    priority: "High",
+    assignedBy: "Manager",
+    description:
+      "Edit a polished residential solar promotional reel using the approved footage, captions and brand direction.",
+    referenceLink: "https://drive.google.com/",
+    submissionLink: "https://drive.google.com/",
+  },
+  {
+    id: 9,
+    brand: "MARK47",
+    title: "Broadcast Overlay Demo",
+    department: "Video Editing",
+    contentType: "Product Reel",
+    platforms: ["Instagram", "YouTube"],
+    day: "Tuesday",
+    deadline: "Tuesday, 3:00 PM",
+    status: "In Progress",
+    priority: "High",
+    assignedBy: "Manager",
+    description:
+      "Edit a product demo showing the MARK47 broadcast overlay workflow, match telemetry and live graphics.",
+    referenceLink: "https://drive.google.com/",
+  },
+  {
+    id: 10,
+    brand: "Softgenie",
+    title: "AI Platform Explainer",
+    department: "Video Editing",
+    contentType: "Motion Graphic",
+    platforms: ["YouTube", "LinkedIn"],
+    day: "Thursday",
+    deadline: "Thursday, 4:00 PM",
+    status: "Not Started",
+    priority: "Medium",
+    assignedBy: "HR",
+    description:
+      "Create a concise motion-graphics explainer presenting the AI campaign planning workflow and key platform benefits.",
+    referenceLink: "https://drive.google.com/",
+  },
+  {
+    id: 11,
+    brand: "E-Bazaar",
+    title: "POS Feature Reel",
+    department: "Video Editing",
+    contentType: "Reel",
+    platforms: ["Instagram"],
+    day: "Friday",
+    deadline: "Friday, 3:30 PM",
+    status: "Delayed",
+    priority: "High",
+    assignedBy: "Manager",
+    description:
+      "Edit a feature reel presenting inventory, billing, reporting and customer-management functionality.",
+    delayReason:
+      "The updated product screen recording has not been received yet.",
+  },
+  {
+    id: 12,
+    brand: "Audit Tracker",
+    title: "Audit Workflow Walkthrough",
+    department: "Video Editing",
+    contentType: "Product Walkthrough",
+    platforms: ["LinkedIn", "YouTube"],
+    day: "Friday",
+    deadline: "Friday, 5:00 PM",
+    status: "Revision Required",
+    priority: "Medium",
+    assignedBy: "Manager",
+    description:
+      "Edit a product walkthrough covering audit planning, evidence collection, review and final reporting.",
+    submissionLink: "https://drive.google.com/",
+    feedback:
+      "Reduce the opening duration and make the workflow labels easier to read.",
+  },
 ];
 
 const weekDays: WeekDay[] = [
@@ -321,16 +399,30 @@ function ProgressMeter({
 }
 
 export default function MyTasks() {
+  const {
+    department,
+    employee,
+  } = useEmployee();
+
   const departmentTasks = useMemo(
     () =>
       initialTasks.filter(
-        (task) => task.department === currentUser.department,
+        (task) =>
+          task.department === department,
       ),
-    [],
+    [department],
   );
 
   const [tasks, setTasks] =
     useState<CreativeTask[]>(departmentTasks);
+
+  useEffect(() => {
+    setTasks(departmentTasks);
+    setSelectedTaskId(null);
+    setSearchQuery("");
+    setStatusFilter("All Statuses");
+    setDayFilter("All Days");
+  }, [departmentTasks]);
 
   const [selectedTaskId, setSelectedTaskId] =
     useState<number | null>(null);
@@ -512,13 +604,13 @@ export default function MyTasks() {
   return (
     <main className="min-h-screen bg-[#e7ebf2] p-3 sm:p-6 xl:p-10">
       <section className="mx-auto w-full max-w-[1600px] overflow-hidden rounded-[26px] border border-white/80 bg-[#fbfcfe] shadow-[0_30px_80px_rgba(50,63,86,0.10)]">
-        <EmployeeHeader />
+        <EmployeeHeader employee={employee} />
 
         <div className="px-4 py-7 sm:px-6 sm:py-8">
           <section className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
             <div>
               <p className="text-sm font-semibold text-[#2f80ed]">
-                {currentUser.department}
+                {department}
               </p>
 
               <h1 className="mt-2 text-3xl font-semibold tracking-[-0.045em] sm:text-4xl">
@@ -526,7 +618,9 @@ export default function MyTasks() {
               </h1>
 
               <p className="mt-2 max-w-2xl text-sm leading-6 text-[#777e89]">
-                Manage your assigned creative tasks, upload submissions and update daily progress.
+                {department === "Video Editing"
+                  ? "Manage your assigned video editing tasks, upload video submissions and update daily progress."
+                  : "Manage your assigned creative tasks, upload submissions and update daily progress."}
               </p>
             </div>
 
@@ -687,8 +781,8 @@ export default function MyTasks() {
                 </h2>
 
                 <p className="mt-1 text-xs text-[#9299a4]">
-                  Only {currentUser.department.toLowerCase()} tasks
-                  visible hain.
+                  Only {department.toLowerCase()} tasks
+                  are visible.
                 </p>
               </div>
 
@@ -1042,8 +1136,8 @@ export default function MyTasks() {
                       </p>
 
                       <p className="mt-1 text-[10px] text-red-600">
-                        Task delayed mark karne se pehle reason
-                        enter karo.
+                        Enter a reason before marking the task
+                        as delayed.
                       </p>
                     </div>
                   </div>
@@ -1054,7 +1148,7 @@ export default function MyTasks() {
                       setDelayReason(event.target.value)
                     }
                     rows={4}
-                    placeholder="Example: Required content ya client assets pending hain."
+                    placeholder="Example: Required content or client assets are still pending."
                     className="mt-4 w-full resize-none rounded-2xl border border-red-100 bg-white p-4 text-sm leading-6 outline-none focus:border-red-400"
                   />
 
@@ -1089,11 +1183,13 @@ export default function MyTasks() {
 
                   <div>
                     <p className="text-xs font-bold">
-                      Submit Creative Work
+                      {department === "Video Editing"
+                        ? "Submit Video Work"
+                        : "Submit Creative Work"}
                     </p>
 
                     <p className="mt-1 text-[10px] text-[#9299a4]">
-                      Google Drive, Figma, Canva ya storage link
+                      Google Drive, project file or storage link
                     </p>
                   </div>
                 </div>
@@ -1131,7 +1227,7 @@ export default function MyTasks() {
                     </p>
 
                     <p className="mt-1 text-[10px] text-[#9299a4]">
-                      Instagram, LinkedIn, Facebook ya other
+                      Instagram, LinkedIn, Facebook or another
                       platform link
                     </p>
                   </div>

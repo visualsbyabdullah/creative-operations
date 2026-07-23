@@ -1,5 +1,8 @@
 "use client";
 
+import EmployeeHeader from "@/components/layout/EmployeeHeader";
+import PillSelect from "@/components/ui/PillSelect";
+
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
@@ -18,11 +21,13 @@ import {
   LayoutDashboard,
   ListChecks,
   MoreHorizontal,
+  Pencil,
   Palette,
   Plus,
   Search,
   Settings,
   Sparkles,
+  Trash2,
   Users,
   X,
 } from "lucide-react";
@@ -62,6 +67,8 @@ type PlannerTask = {
 type WeekDay = "Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday";
 
 type DepartmentFilter = "All Work" | Department;
+type StatusFilter = "All Statuses" | TaskStatus;
+type AssigneeFilter = "All Assignees" | string;
 
 const weekDays: WeekDay[] = [
   "Monday",
@@ -110,6 +117,15 @@ const statusStyles: Record<TaskStatus, string> = {
   Delayed: "bg-red-50 text-red-700",
 };
 
+const plannerStatusOptions: { label: string; value: StatusFilter }[] = [
+  { label: "All Statuses", value: "All Statuses" },
+  ...(Object.keys(statusStyles) as TaskStatus[]).map((value) => ({ label: value, value })),
+];
+
+const plannerAssigneeOptions: { label: string; value: AssigneeFilter }[] = [
+  { label: "All Assignees", value: "All Assignees" },
+  ...Object.values(teamMembers).flat().map((value) => ({ label: value, value })),
+];
 const initialTasks: PlannerTask[] = [
   {
     id: 1,
@@ -170,7 +186,7 @@ const initialTasks: PlannerTask[] = [
     day: "Tuesday",
     time: "3:00 PM",
     status: "Delayed",
-    delayReason: "Required gameplay footage client ki taraf se pending hai.",
+    delayReason: "The required gameplay footage is still pending from the client.",
   },
   {
     id: 6,
@@ -234,34 +250,6 @@ const initialTasks: PlannerTask[] = [
   },
 ];
 
-const navigation = [
-  {
-    label: "Dashboard",
-    href: "/",
-    icon: LayoutDashboard,
-  },
-  {
-    label: "My Tasks",
-    href: "/tasks",
-    icon: ListChecks,
-  },
-  {
-    label: "Planner",
-    href: "/planner",
-    icon: CalendarDays,
-  },
-  {
-    label: "Brands",
-    href: "/brands",
-    icon: Sparkles,
-  },
-  {
-    label: "Team",
-    href: "/team",
-    icon: Users,
-  },
-];
-
 function StatusBadge({ status }: { status: TaskStatus }) {
   return (
     <span
@@ -285,6 +273,11 @@ export default function WeeklyPlanner() {
   const [departmentFilter, setDepartmentFilter] =
     useState<DepartmentFilter>("All Work");
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("All Statuses");
+  const [assigneeFilter, setAssigneeFilter] = useState<AssigneeFilter>("All Assignees");
+  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
+  const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
+  const [weekOffset, setWeekOffset] = useState(0);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [delayTaskId, setDelayTaskId] = useState<number | null>(null);
   const [delayReason, setDelayReason] = useState("");
@@ -300,6 +293,14 @@ export default function WeeklyPlanner() {
     time: "10:00",
   });
 
+  const selectedTask = tasks.find((task) => task.id === selectedTaskId) ?? null;
+  const weekLabel = useMemo(() => {
+    const start = new Date(2026, 6, 20 + weekOffset * 7);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 4);
+    return `${start.getDate()} - ${end.getDate()} ${end.toLocaleString("en-US", { month: "long" })} ${end.getFullYear()}`;
+  }, [weekOffset]);
+
   const filteredTasks = useMemo(() => {
     return tasks.filter((task) => {
       const departmentMatches =
@@ -314,9 +315,12 @@ export default function WeeklyPlanner() {
         task.brand.toLowerCase().includes(query) ||
         task.assignee.toLowerCase().includes(query);
 
-      return departmentMatches && searchMatches;
+      const statusMatches = statusFilter === "All Statuses" || task.status === statusFilter;
+      const assigneeMatches = assigneeFilter === "All Assignees" || task.assignee === assigneeFilter;
+
+      return departmentMatches && statusMatches && assigneeMatches && searchMatches;
     });
-  }, [tasks, departmentFilter, searchQuery]);
+  }, [tasks, departmentFilter, statusFilter, assigneeFilter, searchQuery]);
 
   const taskStats = useMemo(() => {
     const total = filteredTasks.length;
@@ -413,7 +417,15 @@ export default function WeeklyPlanner() {
       status: "Not Started",
     };
 
-    setTasks((currentTasks) => [...currentTasks, task]);
+    setTasks((currentTasks) =>
+      editingTaskId
+        ? currentTasks.map((currentTask) =>
+            currentTask.id === editingTaskId
+              ? { ...currentTask, ...task, id: currentTask.id }
+              : currentTask,
+          )
+        : [...currentTasks, task],
+    );
 
     setNewTask({
       title: "",
@@ -426,88 +438,14 @@ export default function WeeklyPlanner() {
       time: "10:00",
     });
 
+    setEditingTaskId(null);
     setIsTaskModalOpen(false);
   }
 
   return (
     <main className="min-h-screen bg-[#e7ebf2] p-3 sm:p-6 xl:p-10">
       <section className="mx-auto max-w-[1600px] overflow-hidden rounded-[26px] border border-white/80 bg-[#fbfcfe] shadow-[0_30px_80px_rgba(50,63,86,0.10)]">
-        <header className="px-4 pt-4 sm:px-6 sm:pt-6">
-          <div className="flex min-h-20 items-center justify-between gap-4 rounded-[22px] border border-[#f0f2f6] bg-white px-4 shadow-[0_12px_34px_rgba(24,39,75,0.04)] sm:px-6">
-            <Link href="/" className="flex items-center gap-3">
-              <div className="grid size-10 place-items-center rounded-full bg-brand-blue-gradient text-white shadow-lg shadow-blue-200">
-                <Palette size={20} />
-              </div>
-
-              <div>
-                <p className="text-lg font-bold tracking-[-0.04em]">
-                  CreativeOps
-                </p>
-                <p className="hidden text-[11px] text-[#939aa5] sm:block">
-                  Creative operations workspace
-                </p>
-              </div>
-            </Link>
-
-            <nav className="hidden items-center rounded-full bg-[#f6f7f9] p-1.5 lg:flex">
-              {navigation.map(({ label, href, icon: Icon }) => {
-                const isActive = href === "/planner";
-
-                return (
-                  <Link
-                    key={label}
-                    href={href}
-                    className={`flex items-center gap-2 rounded-full px-4 py-2.5 text-xs font-semibold transition ${
-                      isActive
-                        ? "bg-[#15181d] text-white shadow-md"
-                        : "text-[#636a75] hover:bg-white hover:text-[#15181d]"
-                    }`}
-                  >
-                    <Icon size={15} />
-                    {label}
-                  </Link>
-                );
-              })}
-            </nav>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                className="relative grid size-10 place-items-center rounded-full border border-[#edf0f4] bg-white"
-                aria-label="Notifications"
-              >
-                <Bell size={18} />
-                <span className="absolute right-2 top-2 size-2 rounded-full bg-red-500 ring-2 ring-white" />
-              </button>
-
-              <button
-                type="button"
-                className="hidden size-10 place-items-center rounded-full border border-[#edf0f4] bg-white sm:grid"
-                aria-label="Settings"
-              >
-                <Settings size={18} />
-              </button>
-
-              <div className="ml-1 flex items-center gap-3">
-                <div className="grid size-10 place-items-center rounded-full bg-[#1d2430] text-sm font-bold text-white">
-                  AN
-                </div>
-
-                <div className="hidden xl:block">
-                  <p className="text-sm font-bold">Abdullah Naeem</p>
-                  <p className="text-[11px] text-[#9299a4]">
-                    Graphic Designer
-                  </p>
-                </div>
-
-                <ChevronDown
-                  size={16}
-                  className="hidden text-[#7b828d] xl:block"
-                />
-              </div>
-            </div>
-          </div>
-        </header>
+        <EmployeeHeader variant="management" workspaceLabel="Management workspace" />
 
         <div className="px-4 py-7 sm:px-6 sm:py-8">
           <section className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
@@ -527,26 +465,32 @@ export default function WeeklyPlanner() {
 
             <div className="flex flex-wrap items-center gap-2">
               <button
-                type="button"
-                className="grid size-10 place-items-center rounded-full border border-[#e8ebf0] bg-white"
-              >
-                <ChevronLeft size={17} />
-              </button>
+  type="button"
+  onClick={() => setWeekOffset((current) => current - 1)}
+  aria-label="Show previous week"
+  className="grid size-10 place-items-center rounded-full border border-[#e8ebf0] bg-white transition hover:border-[#2f80ed] hover:text-[#2f80ed]"
+>
+  <ChevronLeft size={17} />
+</button>
 
               <button
-                type="button"
-                className="flex items-center gap-2 rounded-full border border-[#e8ebf0] bg-white px-4 py-2.5 text-xs font-bold"
-              >
-                20 – 24 July 2026
-                <ChevronDown size={15} />
-              </button>
+  type="button"
+  onClick={() => setWeekOffset(0)}
+  aria-label="Return to current planning week"
+  className="flex items-center gap-2 rounded-full border border-[#e8ebf0] bg-white px-4 py-2.5 text-xs font-bold transition hover:border-[#2f80ed] hover:text-[#2f80ed]"
+>
+  {weekLabel}
+  <ChevronDown size={15} />
+</button>
 
               <button
-                type="button"
-                className="grid size-10 place-items-center rounded-full border border-[#e8ebf0] bg-white"
-              >
-                <ChevronRight size={17} />
-              </button>
+  type="button"
+  onClick={() => setWeekOffset((current) => current + 1)}
+  aria-label="Show next week"
+  className="grid size-10 place-items-center rounded-full border border-[#e8ebf0] bg-white transition hover:border-[#2f80ed] hover:text-[#2f80ed]"
+>
+  <ChevronRight size={17} />
+</button>
 
               <button
                 type="button"
@@ -586,7 +530,7 @@ export default function WeeklyPlanner() {
                     {taskStats.completed}
                   </p>
                   <p className="mt-3 text-xs text-[#959ca7]">
-                    Approved ya published
+                    Approved or published
                   </p>
                 </div>
 
@@ -685,13 +629,23 @@ export default function WeeklyPlanner() {
                   />
                 </label>
 
-                <button
-                  type="button"
-                  className="flex items-center justify-center gap-2 rounded-full border border-[#e8ebf0] bg-white px-4 py-2.5 text-xs font-bold"
-                >
-                  <Filter size={15} />
-                  More Filters
-                </button>
+                <PillSelect<StatusFilter>
+  icon={Check}
+  value={statusFilter}
+  options={plannerStatusOptions}
+  onValueChange={setStatusFilter}
+  ariaLabel="Filter tasks by status"
+  menuAlign="right"
+/>
+
+<PillSelect<AssigneeFilter>
+  icon={Users}
+  value={assigneeFilter}
+  options={plannerAssigneeOptions}
+  onValueChange={setAssigneeFilter}
+  ariaLabel="Filter tasks by assignee"
+  menuAlign="right"
+/>
               </div>
             </div>
           </section>
@@ -779,11 +733,13 @@ export default function WeeklyPlanner() {
                             </div>
 
                             <button
-                              type="button"
-                              className="grid size-7 shrink-0 place-items-center rounded-full border border-[#edf0f4]"
-                            >
-                              <MoreHorizontal size={14} />
-                            </button>
+  type="button"
+  onClick={() => setSelectedTaskId(task.id)}
+  aria-label={`Open ${task.title} actions`}
+  className="grid size-7 shrink-0 place-items-center rounded-full border border-[#edf0f4] transition hover:border-[#2f80ed] hover:text-[#2f80ed]"
+>
+  <MoreHorizontal size={14} />
+</button>
                           </div>
 
                           <h3 className="mt-4 text-sm font-bold leading-5">
@@ -830,40 +786,9 @@ export default function WeeklyPlanner() {
                             </div>
                           ) : null}
 
-                          <div className="mt-4 flex items-center justify-between gap-2">
-                            <StatusBadge status={task.status} />
-
-                            <select
-                              aria-label="Update task status"
-                              value={task.status}
-                              onChange={(event) =>
-                                updateTaskStatus(
-                                  task.id,
-                                  event.target.value as TaskStatus,
-                                )
-                              }
-                              className="max-w-[110px] rounded-full border border-[#e8ebf0] bg-white px-2 py-1.5 text-[9px] font-bold outline-none"
-                            >
-                              <option value="Not Started">
-                                Not Started
-                              </option>
-                              <option value="In Progress">
-                                In Progress
-                              </option>
-                              <option value="In Review">
-                                In Review
-                              </option>
-                              <option value="Approved">
-                                Approved
-                              </option>
-                              <option value="Published">
-                                Published
-                              </option>
-                              <option value="Delayed">
-                                Delayed
-                              </option>
-                            </select>
-                          </div>
+                          <div className="mt-4">
+  <StatusBadge status={task.status} />
+</div>
 
                           {task.link ? (
                             <a
@@ -887,6 +812,107 @@ export default function WeeklyPlanner() {
         </div>
       </section>
 
+      {selectedTask ? (
+        <>
+          <button
+            type="button"
+            aria-label="Close task details"
+            onClick={() => setSelectedTaskId(null)}
+            className="fixed inset-0 z-40 bg-[#111827]/35 backdrop-blur-[2px]"
+          />
+
+          <aside className="dashboard-scrollbar fixed inset-y-0 right-0 z-50 w-full max-w-[520px] overflow-y-auto bg-white shadow-[-30px_0_80px_rgba(15,23,42,0.18)]">
+            <header className="sticky top-0 z-10 flex items-center justify-between border-b border-[#edf0f5] bg-white/95 p-5 backdrop-blur-xl sm:p-6">
+              <div>
+                <p className="text-xs font-bold text-[#2f80ed]">{selectedTask.brand}</p>
+                <h2 className="mt-1 text-xl font-bold tracking-[-0.03em]">Task Details</h2>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSelectedTaskId(null)}
+                className="grid size-10 place-items-center rounded-full bg-[#f4f6f9]"
+              >
+                <X size={18} />
+              </button>
+            </header>
+
+            <div className="space-y-5 p-5 sm:p-6">
+              <section>
+                <StatusBadge status={selectedTask.status} />
+                <h3 className="mt-4 text-2xl font-bold tracking-[-0.04em]">{selectedTask.title}</h3>
+              </section>
+
+              <section className="grid grid-cols-2 gap-3">
+                {[
+                  ["Department", selectedTask.department],
+                  ["Content Type", selectedTask.contentType],
+                  ["Assignee", selectedTask.assignee],
+                  ["Schedule", `${selectedTask.day}, ${selectedTask.time}`],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-2xl bg-[#f7f9fc] p-4">
+                    <p className="text-[9px] font-bold uppercase tracking-[0.08em] text-[#969da8]">{label}</p>
+                    <p className="mt-2 text-sm font-bold">{value}</p>
+                  </div>
+                ))}
+              </section>
+
+              <section>
+                <p className="text-xs font-bold text-[#4e5661]">Platforms</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {selectedTask.platform.map((platform) => (
+                    <PlatformBadge key={platform} platform={platform} />
+                  ))}
+                </div>
+              </section>
+
+              {selectedTask.delayReason ? (
+                <section className="rounded-[18px] bg-red-50 p-4">
+                  <p className="text-[9px] font-bold uppercase tracking-[0.08em] text-red-500">Delay reason</p>
+                  <p className="mt-2 text-xs leading-5 text-red-700">{selectedTask.delayReason}</p>
+                </section>
+              ) : null}
+
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingTaskId(selectedTask.id);
+                    setNewTask({
+                      title: selectedTask.title,
+                      brand: selectedTask.brand,
+                      department: selectedTask.department,
+                      contentType: selectedTask.contentType,
+                      platform: selectedTask.platform[0],
+                      assignee: selectedTask.assignee,
+                      day: selectedTask.day,
+                      time: "10:00",
+                    });
+                    setSelectedTaskId(null);
+                    setIsTaskModalOpen(true);
+                  }}
+                  className="flex items-center justify-center gap-2 rounded-full bg-[#2f80ed] px-5 py-3 text-xs font-bold text-white"
+                >
+                  <Pencil size={14} />
+                  Edit Task
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTasks((current) => current.filter((task) => task.id !== selectedTask.id));
+                    setSelectedTaskId(null);
+                  }}
+                  className="flex items-center justify-center gap-2 rounded-full border border-red-100 bg-red-50 px-5 py-3 text-xs font-bold text-red-600"
+                >
+                  <Trash2 size={14} />
+                  Delete Task
+                </button>
+              </div>
+            </div>
+          </aside>
+        </>
+      ) : null}
       {isTaskModalOpen ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-[#111827]/40 p-4 backdrop-blur-sm">
           <div className="dashboard-scrollbar max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-[26px] bg-white shadow-[0_30px_90px_rgba(15,23,42,0.25)]">
@@ -922,7 +948,7 @@ export default function WeeklyPlanner() {
                     }))
                   }
                   placeholder="Example: AI Campaign Carousel"
-                  className="mt-2 w-full rounded-2xl border border-[#e5e9ef] px-4 py-3 text-sm outline-none transition focus:border-[#2f80ed]"
+                  className="mt-2 h-11 w-full rounded-2xl border border-[#e5e9ef] px-4 text-sm outline-none transition focus:border-[#2f80ed]"
                 />
               </label>
 
@@ -931,145 +957,96 @@ export default function WeeklyPlanner() {
                   Department
                 </span>
 
-                <select
-                  value={newTask.department}
-                  onChange={(event) =>
-                    handleDepartmentChange(
-                      event.target.value as Department,
-                    )
-                  }
-                  className="mt-2 w-full rounded-2xl border border-[#e5e9ef] bg-white px-4 py-3 text-sm outline-none"
-                >
-                  <option value="Graphic Design">
-                    Graphic Design
-                  </option>
-                  <option value="Video Editing">
-                    Video Editing
-                  </option>
-                </select>
-              </label>
+<PillSelect<Department>
+  value={newTask.department}
+  options={[
+    { label: "Graphic Design", value: "Graphic Design" },
+    { label: "Video Editing", value: "Video Editing" },
+  ]}
+  onValueChange={handleDepartmentChange}
+  ariaLabel="Select department"
+  variant="field"
+  fullWidth
+/>
+</label>
 
               <label>
                 <span className="text-xs font-bold text-[#4d5560]">
                   Brand
                 </span>
 
-                <select
-                  value={newTask.brand}
-                  onChange={(event) =>
-                    setNewTask((current) => ({
-                      ...current,
-                      brand: event.target.value,
-                    }))
-                  }
-                  className="mt-2 w-full rounded-2xl border border-[#e5e9ef] bg-white px-4 py-3 text-sm outline-none"
-                >
-                  {brands.map((brand) => (
-                    <option key={brand} value={brand}>
-                      {brand}
-                    </option>
-                  ))}
-                </select>
-              </label>
+<PillSelect<string>
+  value={newTask.brand}
+  options={brands.map((value) => ({ label: value, value }))}
+  onValueChange={(brand) => setNewTask((current) => ({ ...current, brand }))}
+  ariaLabel="Select brand"
+  variant="field"
+  fullWidth
+/>
+</label>
 
               <label>
                 <span className="text-xs font-bold text-[#4d5560]">
                   Content type
                 </span>
 
-                <select
-                  value={newTask.contentType}
-                  onChange={(event) =>
-                    setNewTask((current) => ({
-                      ...current,
-                      contentType: event.target.value,
-                    }))
-                  }
-                  className="mt-2 w-full rounded-2xl border border-[#e5e9ef] bg-white px-4 py-3 text-sm outline-none"
-                >
-                  {contentTypes[newTask.department].map(
-                    (contentType) => (
-                      <option
-                        key={contentType}
-                        value={contentType}
-                      >
-                        {contentType}
-                      </option>
-                    ),
-                  )}
-                </select>
-              </label>
+<PillSelect<string>
+  value={newTask.contentType}
+  options={contentTypes[newTask.department].map((value) => ({ label: value, value }))}
+  onValueChange={(contentType) => setNewTask((current) => ({ ...current, contentType }))}
+  ariaLabel="Select content type"
+  variant="field"
+  fullWidth
+/>
+</label>
 
               <label>
                 <span className="text-xs font-bold text-[#4d5560]">
                   Platform
                 </span>
 
-                <select
-                  value={newTask.platform}
-                  onChange={(event) =>
-                    setNewTask((current) => ({
-                      ...current,
-                      platform: event.target.value as Platform,
-                    }))
-                  }
-                  className="mt-2 w-full rounded-2xl border border-[#e5e9ef] bg-white px-4 py-3 text-sm outline-none"
-                >
-                  <option value="Instagram">Instagram</option>
-                  <option value="Facebook">Facebook</option>
-                  <option value="LinkedIn">LinkedIn</option>
-                  <option value="TikTok">TikTok</option>
-                  <option value="YouTube">YouTube</option>
-                </select>
-              </label>
+<PillSelect<Platform>
+  value={newTask.platform}
+  options={["Instagram", "Facebook", "LinkedIn", "TikTok", "YouTube"].map((value) => ({
+    label: value,
+    value: value as Platform,
+  }))}
+  onValueChange={(platform) => setNewTask((current) => ({ ...current, platform }))}
+  ariaLabel="Select platform"
+  variant="field"
+  fullWidth
+/>
+</label>
 
               <label>
                 <span className="text-xs font-bold text-[#4d5560]">
                   Assignee
                 </span>
 
-                <select
-                  value={newTask.assignee}
-                  onChange={(event) =>
-                    setNewTask((current) => ({
-                      ...current,
-                      assignee: event.target.value,
-                    }))
-                  }
-                  className="mt-2 w-full rounded-2xl border border-[#e5e9ef] bg-white px-4 py-3 text-sm outline-none"
-                >
-                  {teamMembers[newTask.department].map(
-                    (member) => (
-                      <option key={member} value={member}>
-                        {member}
-                      </option>
-                    ),
-                  )}
-                </select>
-              </label>
+<PillSelect<string>
+  value={newTask.assignee}
+  options={teamMembers[newTask.department].map((value) => ({ label: value, value }))}
+  onValueChange={(assignee) => setNewTask((current) => ({ ...current, assignee }))}
+  ariaLabel="Select assignee"
+  variant="field"
+  fullWidth
+/>
+</label>
 
               <label>
                 <span className="text-xs font-bold text-[#4d5560]">
                   Day
                 </span>
 
-                <select
-                  value={newTask.day}
-                  onChange={(event) =>
-                    setNewTask((current) => ({
-                      ...current,
-                      day: event.target.value as WeekDay,
-                    }))
-                  }
-                  className="mt-2 w-full rounded-2xl border border-[#e5e9ef] bg-white px-4 py-3 text-sm outline-none"
-                >
-                  {weekDays.map((day) => (
-                    <option key={day} value={day}>
-                      {day}
-                    </option>
-                  ))}
-                </select>
-              </label>
+<PillSelect<WeekDay>
+  value={newTask.day}
+  options={weekDays.map((value) => ({ label: value, value }))}
+  onValueChange={(day) => setNewTask((current) => ({ ...current, day }))}
+  ariaLabel="Select day"
+  variant="field"
+  fullWidth
+/>
+</label>
 
               <label>
                 <span className="text-xs font-bold text-[#4d5560]">
@@ -1085,7 +1062,7 @@ export default function WeeklyPlanner() {
                       time: event.target.value,
                     }))
                   }
-                  className="mt-2 w-full rounded-2xl border border-[#e5e9ef] px-4 py-3 text-sm outline-none"
+                  className="mt-2 h-11 w-full rounded-2xl border border-[#e5e9ef] px-4 text-sm outline-none"
                 />
               </label>
             </div>
@@ -1105,7 +1082,7 @@ export default function WeeklyPlanner() {
                 disabled={!newTask.title.trim()}
                 className="rounded-full bg-[#2f80ed] px-6 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-40"
               >
-                Add Task
+                {editingTaskId ? "Save Changes" : "Add Task"}
               </button>
             </footer>
           </div>

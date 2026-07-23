@@ -1,5 +1,7 @@
 "use client";
 
+import EmployeeHeader from "@/components/layout/EmployeeHeader";
+
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
@@ -22,12 +24,14 @@ import {
   ListChecks,
   MessageCircle,
   MoreHorizontal,
+  Pencil,
   Palette,
   PlaySquare,
   Plus,
   Search,
   Settings,
   Sparkles,
+  Trash2,
   Users,
   X,
 } from "lucide-react";
@@ -84,34 +88,6 @@ type Brand = {
   platforms: Platform[];
   weeklySchedule: WeeklyScheduleItem[];
 };
-
-const navigation = [
-  {
-    label: "Dashboard",
-    href: "/",
-    icon: LayoutDashboard,
-  },
-  {
-    label: "My Tasks",
-    href: "/tasks",
-    icon: ListChecks,
-  },
-  {
-    label: "Planner",
-    href: "/planner",
-    icon: CalendarDays,
-  },
-  {
-    label: "Brands",
-    href: "/brands",
-    icon: Sparkles,
-  },
-  {
-    label: "Team",
-    href: "/team",
-    icon: Users,
-  },
-];
 
 const weekDays: WeekDay[] = [
   "Monday",
@@ -467,6 +443,12 @@ export default function BrandsManagement() {
   const [selectedBrandId, setSelectedBrandId] =
     useState<number | null>(null);
 
+  const [scheduleDraft, setScheduleDraft] =
+    useState<WeeklyScheduleItem | null>(null);
+
+  const [isNewScheduleTask, setIsNewScheduleTask] =
+    useState(false);
+
   const [isAddModalOpen, setIsAddModalOpen] =
     useState(false);
 
@@ -570,6 +552,73 @@ export default function BrandsManagement() {
     );
   }
 
+  function openScheduleTask(item: WeeklyScheduleItem) {
+    setScheduleDraft({
+      ...item,
+      platforms: [...item.platforms],
+    });
+    setIsNewScheduleTask(false);
+  }
+
+  function openNewScheduleTask() {
+    setScheduleDraft({
+      id: Date.now(),
+      day: "Monday",
+      department: "Graphic Design",
+      contentType: "Static Post",
+      platforms: ["Instagram"],
+      publishingTime: "10:00 AM",
+    });
+    setIsNewScheduleTask(true);
+  }
+
+  function closeScheduleTask() {
+    setScheduleDraft(null);
+    setIsNewScheduleTask(false);
+  }
+
+  function saveScheduleTask() {
+    if (!selectedBrandId || !scheduleDraft?.contentType.trim()) return;
+
+    setBrands((current) =>
+      current.map((brand) => {
+        if (brand.id !== selectedBrandId) return brand;
+
+        return {
+          ...brand,
+          weeklySchedule: isNewScheduleTask
+            ? [...brand.weeklySchedule, scheduleDraft]
+            : brand.weeklySchedule.map((item) =>
+                item.id === scheduleDraft.id
+                  ? scheduleDraft
+                  : item,
+              ),
+        };
+      }),
+    );
+
+    closeScheduleTask();
+  }
+
+  function deleteScheduleTask() {
+    if (!selectedBrandId || !scheduleDraft) return;
+
+    setBrands((current) =>
+      current.map((brand) =>
+        brand.id === selectedBrandId
+          ? {
+              ...brand,
+              weeklySchedule: brand.weeklySchedule.filter(
+                (item) => item.id !== scheduleDraft.id,
+              ),
+            }
+          : brand,
+      ),
+    );
+
+    closeScheduleTask();
+  }
+
   function addBrand() {
     if (
       !newBrand.name.trim() ||
@@ -623,97 +672,7 @@ export default function BrandsManagement() {
   return (
     <main className="min-h-screen bg-[#e7ebf2] p-3 sm:p-6 xl:p-10">
       <section className="mx-auto max-w-[1600px] overflow-hidden rounded-[26px] border border-white/80 bg-[#fbfcfe] shadow-[0_30px_80px_rgba(50,63,86,0.10)]">
-        <header className="px-4 pt-4 sm:px-6 sm:pt-6">
-          <div className="flex min-h-20 items-center justify-between gap-4 rounded-[22px] border border-[#f0f2f6] bg-white px-4 shadow-[0_12px_34px_rgba(24,39,75,0.04)] sm:px-6">
-            <Link
-              href="/"
-              className="flex items-center gap-3"
-            >
-              <div className="grid size-10 place-items-center rounded-full bg-brand-blue-gradient text-white shadow-lg shadow-blue-200">
-                <Palette size={20} />
-              </div>
-
-              <div>
-                <p className="text-lg font-bold tracking-[-0.04em]">
-                  CreativeOps
-                </p>
-
-                <p className="hidden text-[11px] text-[#939aa5] sm:block">
-                  Creative operations workspace
-                </p>
-              </div>
-            </Link>
-
-            <nav className="hidden items-center rounded-full bg-[#f6f7f9] p-1.5 lg:flex">
-              {navigation.map(
-                ({
-                  label,
-                  href,
-                  icon: Icon,
-                }) => {
-                  const isActive =
-                    href === "/brands";
-
-                  return (
-                    <Link
-                      key={label}
-                      href={href}
-                      className={`flex items-center gap-2 rounded-full px-4 py-2.5 text-xs font-semibold transition ${
-                        isActive
-                          ? "bg-[#15181d] text-white shadow-md"
-                          : "text-[#636a75] hover:bg-white hover:text-[#15181d]"
-                      }`}
-                    >
-                      <Icon size={15} />
-                      {label}
-                    </Link>
-                  );
-                },
-              )}
-            </nav>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                aria-label="Notifications"
-                className="relative grid size-10 place-items-center rounded-full border border-[#edf0f4] bg-white"
-              >
-                <Bell size={18} />
-
-                <span className="absolute right-2 top-2 size-2 rounded-full bg-red-500 ring-2 ring-white" />
-              </button>
-
-              <button
-                type="button"
-                aria-label="Settings"
-                className="hidden size-10 place-items-center rounded-full border border-[#edf0f4] bg-white sm:grid"
-              >
-                <Settings size={18} />
-              </button>
-
-              <div className="ml-1 flex items-center gap-3">
-                <div className="grid size-10 place-items-center rounded-full bg-[#1d2430] text-sm font-bold text-white">
-                  AN
-                </div>
-
-                <div className="hidden xl:block">
-                  <p className="text-sm font-bold">
-                    Abdullah Naeem
-                  </p>
-
-                  <p className="text-[11px] text-[#9299a4]">
-                    Graphic Designer
-                  </p>
-                </div>
-
-                <ChevronDown
-                  size={16}
-                  className="hidden text-[#7b828d] xl:block"
-                />
-              </div>
-            </div>
-          </div>
-        </header>
+        <EmployeeHeader variant="management" workspaceLabel="Management workspace" />
 
         <div className="px-4 py-7 sm:px-6 sm:py-8">
           <section className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
@@ -1323,6 +1282,7 @@ export default function BrandsManagement() {
 
                   <button
                     type="button"
+                    onClick={openNewScheduleTask}
                     className="flex items-center gap-2 rounded-full bg-[#edf5ff] px-4 py-2 text-[10px] font-bold text-[#2f80ed]"
                   >
                     <Plus size={14} />
@@ -1417,11 +1377,11 @@ export default function BrandsManagement() {
 
                                     <button
                                       type="button"
-                                      className="grid size-8 place-items-center rounded-full border border-[#e7ebf0]"
+                                      onClick={() => openScheduleTask(item)}
+                                      aria-label={`Edit ${item.contentType} schedule`}
+                                      className="grid size-8 place-items-center rounded-full border border-[#e7ebf0] transition hover:border-[#2f80ed] hover:text-[#2f80ed]"
                                     >
-                                      <MoreHorizontal
-                                        size={14}
-                                      />
+                                      <MoreHorizontal size={14} />
                                     </button>
                                   </div>
                                 </div>
@@ -1443,6 +1403,130 @@ export default function BrandsManagement() {
         </>
       ) : null}
 
+      {scheduleDraft ? (
+        <div className="fixed inset-0 z-[70] grid place-items-center bg-[#111827]/45 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-[26px] bg-white shadow-[0_30px_90px_rgba(15,23,42,0.25)]">
+            <header className="flex items-center justify-between border-b border-[#edf0f5] p-5 sm:p-6">
+              <div>
+                <p className="text-xs font-bold text-[#2f80ed]">Weekly schedule</p>
+                <h2 className="mt-1 text-xl font-bold">
+                  {isNewScheduleTask ? "Add Schedule Task" : "Edit Schedule Task"}
+                </h2>
+              </div>
+
+              <button
+                type="button"
+                onClick={closeScheduleTask}
+                className="grid size-10 place-items-center rounded-full bg-[#f4f6f9]"
+              >
+                <X size={18} />
+              </button>
+            </header>
+
+            <div className="grid gap-5 p-5 sm:grid-cols-2 sm:p-6">
+              <label>
+                <span className="text-xs font-bold text-[#4d5560]">Day</span>
+                <PillSelect<WeekDay>
+                  value={scheduleDraft.day}
+                  options={weekDays.map((value) => ({ label: value, value }))}
+                  onValueChange={(day) =>
+                    setScheduleDraft({ ...scheduleDraft, day })
+                  }
+                  ariaLabel="Select schedule day"
+                  variant="field"
+                  fullWidth
+                />
+              </label>
+
+              <label>
+                <span className="text-xs font-bold text-[#4d5560]">Department</span>
+                <PillSelect<ContentDepartment>
+                  value={scheduleDraft.department}
+                  options={[
+                    { label: "Graphic Design", value: "Graphic Design" },
+                    { label: "Video Editing", value: "Video Editing" },
+                  ]}
+                  onValueChange={(department) =>
+                    setScheduleDraft({ ...scheduleDraft, department })
+                  }
+                  ariaLabel="Select schedule department"
+                  variant="field"
+                  fullWidth
+                />
+              </label>
+
+              <label>
+                <span className="text-xs font-bold text-[#4d5560]">Content type</span>
+                <input
+                  value={scheduleDraft.contentType}
+                  onChange={(event) =>
+                    setScheduleDraft({
+                      ...scheduleDraft,
+                      contentType: event.target.value,
+                    })
+                  }
+                  className="mt-2 h-11 w-full rounded-2xl border border-[#e5e9ef] px-4 text-sm outline-none focus:border-[#2f80ed]"
+                />
+              </label>
+
+              <label>
+                <span className="text-xs font-bold text-[#4d5560]">Publishing time</span>
+                <input
+                  value={scheduleDraft.publishingTime}
+                  onChange={(event) =>
+                    setScheduleDraft({
+                      ...scheduleDraft,
+                      publishingTime: event.target.value,
+                    })
+                  }
+                  className="mt-2 h-11 w-full rounded-2xl border border-[#e5e9ef] px-4 text-sm outline-none focus:border-[#2f80ed]"
+                />
+              </label>
+
+              <label className="sm:col-span-2">
+                <span className="text-xs font-bold text-[#4d5560]">Platforms</span>
+                <input
+                  value={scheduleDraft.platforms.join(", ")}
+                  onChange={(event) =>
+                    setScheduleDraft({
+                      ...scheduleDraft,
+                      platforms: event.target.value
+                        .split(",")
+                        .map((value) => value.trim())
+                        .filter(Boolean) as Platform[],
+                    })
+                  }
+                  placeholder="Instagram, LinkedIn"
+                  className="mt-2 h-11 w-full rounded-2xl border border-[#e5e9ef] px-4 text-sm outline-none focus:border-[#2f80ed]"
+                />
+              </label>
+            </div>
+
+            <footer className={`grid gap-3 border-t border-[#edf0f5] p-5 sm:p-6 ${isNewScheduleTask ? "grid-cols-1" : "grid-cols-2"}`}>
+              {!isNewScheduleTask ? (
+                <button
+                  type="button"
+                  onClick={deleteScheduleTask}
+                  className="flex items-center justify-center gap-2 rounded-full border border-red-100 bg-red-50 px-5 py-3 text-xs font-bold text-red-600"
+                >
+                  <Trash2 size={14} />
+                  Delete Task
+                </button>
+              ) : null}
+
+              <button
+                type="button"
+                onClick={saveScheduleTask}
+                disabled={!scheduleDraft.contentType.trim()}
+                className="flex items-center justify-center gap-2 rounded-full bg-[#2f80ed] px-5 py-3 text-xs font-bold text-white disabled:opacity-40"
+              >
+                <Pencil size={14} />
+                {isNewScheduleTask ? "Add Task" : "Save Changes"}
+              </button>
+            </footer>
+          </div>
+        </div>
+      ) : null}
       {isAddModalOpen ? (
         <div className="fixed inset-0 z-[60] grid place-items-center bg-[#111827]/40 p-4 backdrop-blur-sm">
           <div className="dashboard-scrollbar max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-[26px] bg-white shadow-[0_30px_90px_rgba(15,23,42,0.25)]">

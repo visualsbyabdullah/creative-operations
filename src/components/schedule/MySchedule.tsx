@@ -19,10 +19,11 @@ import {
 import EmployeeHeader from "@/components/layout/EmployeeHeader";
 import PillSelect from "@/components/ui/PillSelect";
 
-import {
-  employeeProfiles,
-  type EmployeeDepartment,
+import type {
+  EmployeeDepartment,
 } from "@/config/employee";
+
+import { useEmployee } from "@/context/EmployeeContext";
 
 type WeekDay =
   | "Monday"
@@ -85,20 +86,6 @@ const taskStatuses: TaskStatus[] = [
   "Approved",
   "Published",
   "Delayed",
-];
-
-const departmentOptions: {
-  label: string;
-  value: EmployeeDepartment;
-}[] = [
-  {
-    label: "Graphic Designer",
-    value: "Graphic Design",
-  },
-  {
-    label: "Video Editor",
-    value: "Video Editing",
-  },
 ];
 
 const dayFilterOptions: {
@@ -202,7 +189,7 @@ const scheduleTasks: ScheduleTask[] = [
     deadline: "12:30 PM",
     status: "Delayed",
     delayReason:
-      "Required product photographs client ki taraf se pending hain.",
+      "The required product photographs are still pending from the client.",
   },
   {
     id: 6,
@@ -285,12 +272,10 @@ function StatusBadge({
 }
 
 export default function MySchedule() {
-  const [
-    selectedDepartment,
-    setSelectedDepartment,
-  ] = useState<EmployeeDepartment>(
-    "Graphic Design",
-  );
+  const {
+    department: selectedDepartment,
+    employee,
+  } = useEmployee();
 
   const [dayFilter, setDayFilter] =
     useState<DayFilter>("All Days");
@@ -301,8 +286,6 @@ export default function MySchedule() {
   const [searchQuery, setSearchQuery] =
     useState("");
 
-  const employee =
-    employeeProfiles[selectedDepartment];
 
   const employeeTasks = useMemo(() => {
     const query = searchQuery

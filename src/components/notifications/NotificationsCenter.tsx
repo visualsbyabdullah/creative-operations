@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useMemo, useState } from "react";
 
@@ -22,10 +22,11 @@ import {
 import EmployeeHeader from "@/components/layout/EmployeeHeader";
 import PillSelect from "@/components/ui/PillSelect";
 
-import {
-  employeeProfiles,
-  type EmployeeDepartment,
+import type {
+  EmployeeDepartment,
 } from "@/config/employee";
+
+import { useEmployee } from "@/context/EmployeeContext";
 
 type NotificationType =
   | "Task Assignment"
@@ -58,20 +59,6 @@ type EmployeeNotification = {
   actionHref?: string;
   feedback?: string;
 };
-
-const departmentOptions: {
-  label: string;
-  value: EmployeeDepartment;
-}[] = [
-  {
-    label: "Graphic Designer",
-    value: "Graphic Design",
-  },
-  {
-    label: "Video Editor",
-    value: "Video Editing",
-  },
-];
 
 const notificationTypeOptions: {
   label: string;
@@ -130,7 +117,7 @@ const initialNotifications: EmployeeNotification[] = [
     id: 1,
     title: "New task assigned",
     description:
-      "MARK47 esports match announcement graphic aapko assign kiya gaya hai.",
+      "The MARK47 esports match announcement graphic has been assigned to you.",
     department: "Graphic Design",
     type: "Task Assignment",
     time: "10 minutes ago",
@@ -144,7 +131,7 @@ const initialNotifications: EmployeeNotification[] = [
     id: 2,
     title: "Revision requested",
     description:
-      "E-Bazaar feature carousel par manager ne revision request bheji hai.",
+      "The manager requested revisions for the E-Bazaar feature carousel.",
     department: "Graphic Design",
     type: "Revision",
     time: "45 minutes ago",
@@ -160,7 +147,7 @@ const initialNotifications: EmployeeNotification[] = [
     id: 3,
     title: "Submission approved",
     description:
-      "Softgenie AI Campaign Planner carousel approve ho gaya hai.",
+      "The Softgenie AI Campaign Planner carousel has been approved.",
     department: "Graphic Design",
     type: "Approval",
     time: "2 hours ago",
@@ -174,7 +161,7 @@ const initialNotifications: EmployeeNotification[] = [
     id: 4,
     title: "Deadline reminder",
     description:
-      "Softech Payroll Automation post ki deadline aaj 2:00 PM hai.",
+      "The Softech Payroll Automation post is due today at 2:00 PM.",
     department: "Graphic Design",
     type: "Deadline",
     time: "3 hours ago",
@@ -188,7 +175,7 @@ const initialNotifications: EmployeeNotification[] = [
     id: 5,
     title: "Content published",
     description:
-      "Solentrix product highlight Instagram aur Facebook par publish ho gaya.",
+      "The Solentrix product highlight was published on Instagram and Facebook.",
     department: "Graphic Design",
     type: "Published",
     time: "Yesterday",
@@ -202,7 +189,7 @@ const initialNotifications: EmployeeNotification[] = [
     id: 6,
     title: "New reel assigned",
     description:
-      "MARK47 Broadcast Overlay Demo reel aapko assign ki gayi hai.",
+      "The MARK47 Broadcast Overlay Demo reel has been assigned to you.",
     department: "Video Editing",
     type: "Task Assignment",
     time: "15 minutes ago",
@@ -216,7 +203,7 @@ const initialNotifications: EmployeeNotification[] = [
     id: 7,
     title: "Video revision requested",
     description:
-      "Softech Business Automation Reel par revision required hai.",
+      "The Softech Business Automation Reel requires revisions.",
     department: "Video Editing",
     type: "Revision",
     time: "1 hour ago",
@@ -232,7 +219,7 @@ const initialNotifications: EmployeeNotification[] = [
     id: 8,
     title: "Video submission received",
     description:
-      "Solentrix Residential Solar Promo Reel successfully submit ho gayi.",
+      "The Solentrix Residential Solar Promo Reel was submitted successfully.",
     department: "Video Editing",
     type: "Submission",
     time: "2 hours ago",
@@ -246,7 +233,7 @@ const initialNotifications: EmployeeNotification[] = [
     id: 9,
     title: "Deadline approaching",
     description:
-      "Softgenie AI Platform Explainer ki deadline kal 4:00 PM hai.",
+      "The Softgenie AI Platform Explainer is due tomorrow at 4:00 PM.",
     department: "Video Editing",
     type: "Deadline",
     time: "Yesterday",
@@ -260,7 +247,7 @@ const initialNotifications: EmployeeNotification[] = [
     id: 10,
     title: "Reel published",
     description:
-      "Solentrix promo reel Instagram aur TikTok par publish ho gayi.",
+      "The Solentrix promo reel was published on Instagram and TikTok.",
     department: "Video Editing",
     type: "Published",
     time: "2 days ago",
@@ -321,12 +308,10 @@ function getNotificationAppearance(
 }
 
 export default function NotificationsCenter() {
-  const [
-    selectedDepartment,
-    setSelectedDepartment,
-  ] = useState<EmployeeDepartment>(
-    "Graphic Design",
-  );
+  const {
+    department: selectedDepartment,
+    employee,
+  } = useEmployee();
 
   const [
     notifications,
@@ -353,8 +338,6 @@ export default function NotificationsCenter() {
     setSelectedNotificationId,
   ] = useState<number | null>(null);
 
-  const employee =
-    employeeProfiles[selectedDepartment];
 
   const departmentNotifications =
     useMemo(
@@ -507,9 +490,7 @@ export default function NotificationsCenter() {
               </h1>
 
               <p className="mt-2 max-w-2xl text-sm leading-6 text-[#777e89]">
-                Task assignments, approvals,
-                revisions aur deadline reminders
-                in one place.
+                View task assignments, approvals, revisions and deadline reminders in one place.
               </p>
             </div>
 

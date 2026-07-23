@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -22,6 +22,7 @@ import { defaultEmployee } from "@/config/employee";
 import { createClient } from "@/lib/supabase/client";
 
 import { employeeNavigation } from "@/config/employeeNavigation";
+import { managementNavigation } from "@/config/managementNavigation";
 
 type HeaderEmployee = {
   initials: string;
@@ -31,6 +32,8 @@ type HeaderEmployee = {
 
 type EmployeeHeaderProps = {
   employee?: HeaderEmployee;
+  variant?: "employee" | "management";
+  workspaceLabel?: string;
 };
 
 const roleLabels: Record<string, string> = {
@@ -63,9 +66,12 @@ function createInitials(name: string) {
 
 export default function EmployeeHeader({
   employee = defaultEmployee,
+  variant = "employee",
+  workspaceLabel = "Creative operations workspace",
 }: EmployeeHeaderProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const navigation = variant === "management" ? managementNavigation : employeeNavigation;
 
   const [
     currentEmployee,
@@ -261,13 +267,13 @@ export default function EmployeeHeader({
               </p>
 
               <p className="hidden text-[11px] text-[#939aa5] sm:block">
-                Creative operations workspace
+                {workspaceLabel}
               </p>
             </div>
           </Link>
 
           <nav className="hidden items-center rounded-full bg-[#f6f7f9] p-1.5 lg:flex">
-            {employeeNavigation.map(
+            {navigation.map(
               ({
                 label,
                 href,
@@ -431,7 +437,7 @@ export default function EmployeeHeader({
                   </p>
 
                   <p className="text-[10px] text-[#9299a4]">
-                    Employee workspace
+                    {workspaceLabel}
                   </p>
                 </div>
               </div>
@@ -450,7 +456,7 @@ export default function EmployeeHeader({
             </div>
 
             <nav className="mt-8 space-y-2">
-              {employeeNavigation.map(
+              {navigation.map(
                 ({
                   label,
                   href,

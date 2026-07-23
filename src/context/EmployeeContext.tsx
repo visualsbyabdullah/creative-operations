@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import {
   createContext,
@@ -13,7 +13,10 @@ import {
   employeeProfiles,
   type EmployeeDepartment,
   type EmployeeProfile,
+  type EmployeeRole,
 } from "@/config/employee";
+
+import { createClient } from "@/lib/supabase/client";
 
 type EmployeeContextValue = {
   department: EmployeeDepartment;
@@ -33,12 +36,58 @@ const storageKey =
   "creativeops-employee-department";
 
 function isEmployeeDepartment(
-  value: string | null,
+  value: unknown,
 ): value is EmployeeDepartment {
   return (
     value === "Graphic Design" ||
     value === "Video Editing"
   );
+}
+
+function createInitials(name: string) {
+  const words = name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (words.length === 0) {
+    return "EP";
+  }
+
+  if (words.length === 1) {
+    return words[0]
+      .slice(0, 2)
+      .toUpperCase();
+  }
+
+  return `${words[0][0]}${
+    words[words.length - 1][0]
+  }`.toUpperCase();
+}
+
+function resolveDepartment(
+  role: unknown,
+  profileDepartment: unknown,
+): EmployeeDepartment {
+  if (
+    isEmployeeDepartment(
+      profileDepartment,
+    )
+  ) {
+    return profileDepartment;
+  }
+
+  return role === "video_editor"
+    ? "Video Editing"
+    : "Graphic Design";
+}
+
+function resolveRole(
+  department: EmployeeDepartment,
+): EmployeeRole {
+  return department === "Video Editing"
+    ? "Video Editor"
+    : "Graphic Designer";
 }
 
 export function EmployeeProvider({
@@ -53,26 +102,121 @@ export function EmployeeProvider({
     "Graphic Design",
   );
 
+  const [
+    employee,
+    setEmployee,
+  ] = useState<EmployeeProfile>(
+    employeeProfiles["Graphic Design"],
+  );
+
   const [isHydrated, setIsHydrated] =
     useState(false);
 
   useEffect(() => {
-    const savedDepartment =
-      window.localStorage.getItem(
-        storageKey,
+    let isMounted = true;
+
+    async function loadAuthenticatedEmployee() {
+      const savedDepartment =
+        window.localStorage.getItem(
+          storageKey,
+        );
+
+      if (
+        isEmployeeDepartment(
+          savedDepartment,
+        )
+      ) {
+        setDepartmentState(
+          savedDepartment,
+        );
+
+        setEmployee(
+          employeeProfiles[
+            savedDepartment
+          ],
+        );
+      }
+
+      const supabase = createClient();
+
+      const {
+        data: userData,
+      } = await supabase.auth.getUser();
+
+      const user = userData.user;
+
+      if (!user || !isMounted) {
+        setIsHydrated(true);
+        return;
+      }
+
+      const {
+        data: profile,
+      } = await supabase
+        .from("profiles")
+        .select(
+          "full_name, role, department",
+        )
+        .eq("id", user.id)
+        .single();
+
+      if (!profile || !isMounted) {
+        setIsHydrated(true);
+        return;
+      }
+
+      const resolvedDepartment =
+        resolveDepartment(
+          profile.role,
+          profile.department,
+        );
+
+      const fallback =
+        employeeProfiles[
+          resolvedDepartment
+        ];
+
+      const fullName =
+        typeof profile.full_name ===
+          "string" &&
+        profile.full_name.trim()
+          ? profile.full_name.trim()
+          : fallback.name;
+
+      setDepartmentState(
+        resolvedDepartment,
       );
 
-    if (
-      isEmployeeDepartment(
-        savedDepartment,
-      )
-    ) {
-      setDepartmentState(
-        savedDepartment,
+      setEmployee({
+        id: user.id,
+        name: fullName,
+        firstName:
+          fullName
+            .split(/\s+/)[0] ||
+          fallback.firstName,
+        initials:
+          createInitials(fullName),
+        role:
+          resolveRole(
+            resolvedDepartment,
+          ),
+        department:
+          resolvedDepartment,
+      });
+
+      window.localStorage.setItem(
+        storageKey,
+        resolvedDepartment,
       );
+
+      setIsHydrated(true);
     }
 
-    setIsHydrated(true);
+    void loadAuthenticatedEmployee();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   function setDepartment(
@@ -80,14 +224,15 @@ export function EmployeeProvider({
   ) {
     setDepartmentState(nextDepartment);
 
+    setEmployee(
+      employeeProfiles[nextDepartment],
+    );
+
     window.localStorage.setItem(
       storageKey,
       nextDepartment,
     );
   }
-
-  const employee =
-    employeeProfiles[department];
 
   const value = useMemo(
     () => ({

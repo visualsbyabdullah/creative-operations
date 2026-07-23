@@ -23,10 +23,11 @@ import {
 import EmployeeHeader from "@/components/layout/EmployeeHeader";
 import PillSelect from "@/components/ui/PillSelect";
 
-import {
-  employeeProfiles,
-  type EmployeeDepartment,
+import type {
+  EmployeeDepartment,
 } from "@/config/employee";
+
+import { useEmployee } from "@/context/EmployeeContext";
 
 type SubmissionStatus =
   | "Draft"
@@ -94,20 +95,6 @@ const statusOptions: {
   {
     label: "Published",
     value: "Published",
-  },
-];
-
-const departmentOptions: {
-  label: string;
-  value: EmployeeDepartment;
-}[] = [
-  {
-    label: "Graphic Designer",
-    value: "Graphic Design",
-  },
-  {
-    label: "Video Editor",
-    value: "Video Editing",
   },
 ];
 
@@ -272,12 +259,10 @@ function StatusBadge({
 }
 
 export default function SubmissionsManagement() {
-  const [
-    selectedDepartment,
-    setSelectedDepartment,
-  ] = useState<EmployeeDepartment>(
-    "Graphic Design",
-  );
+  const {
+    department: selectedDepartment,
+    employee,
+  } = useEmployee();
 
   const [submissions, setSubmissions] =
     useState<Submission[]>(
@@ -312,8 +297,6 @@ export default function SubmissionsManagement() {
       notes: "",
     });
 
-  const employee =
-    employeeProfiles[selectedDepartment];
 
   const departmentSubmissions = useMemo(
     () =>
@@ -518,9 +501,7 @@ export default function SubmissionsManagement() {
               </h1>
 
               <p className="mt-2 max-w-2xl text-sm leading-6 text-[#777e89]">
-                Apne completed work ke source,
-                final aur published links manage
-                karo.
+                Manage source, final and published links for your completed work.
               </p>
             </div>
 
@@ -1066,8 +1047,7 @@ export default function SubmissionsManagement() {
                 </h2>
 
                 <p className="mt-1 text-xs text-[#8b929d]">
-                  Task ka final work aur source
-                  submit the required links.
+                  Submit the task's final work and source links.
                 </p>
               </div>
 

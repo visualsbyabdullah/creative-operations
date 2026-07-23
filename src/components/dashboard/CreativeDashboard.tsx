@@ -9,6 +9,7 @@ import Link from "next/link";
 import { employeeNavigation } from "@/config/employeeNavigation";
 
 import type { ComponentType } from "react";
+import type { EmployeeProfile } from "@/types/auth";
 import WeeklyProgressMeter from "@/components/dashboard/WeeklyProgressMeter";
 
 
@@ -136,6 +137,62 @@ const initialTasks: Task[] = [
 
 
 
+const videoDashboardTasks: Task[] = [
+  {
+    id: 101,
+    brand: "Solentrix",
+    initials: "SX",
+    content: "Residential Solar Promo Reel",
+    platform: "Instagram",
+    deadline: "Today, 11:30 AM",
+    status: "Approved",
+  },
+  {
+    id: 102,
+    brand: "MARK47",
+    initials: "M7",
+    content: "Broadcast Overlay Demo",
+    platform: "YouTube",
+    deadline: "Today, 2:00 PM",
+    status: "In Progress",
+  },
+  {
+    id: 103,
+    brand: "Softech",
+    initials: "ST",
+    content: "Business Automation Reel",
+    platform: "LinkedIn",
+    deadline: "Today, 4:30 PM",
+    status: "In Review",
+  },
+  {
+    id: 104,
+    brand: "Softgenie",
+    initials: "SG",
+    content: "AI Platform Explainer",
+    platform: "YouTube",
+    deadline: "Thursday, 4:00 PM",
+    status: "Not Started",
+  },
+  {
+    id: 105,
+    brand: "E-Bazaar",
+    initials: "EB",
+    content: "POS Feature Reel",
+    platform: "Instagram",
+    deadline: "Friday, 3:30 PM",
+    status: "Delayed",
+  },
+  {
+    id: 106,
+    brand: "Audit Tracker",
+    initials: "AT",
+    content: "Audit Workflow Walkthrough",
+    platform: "LinkedIn",
+    deadline: "Friday, 5:00 PM",
+    status: "Not Started",
+  },
+];
 function StatusBadge({ status }: { status: TaskStatus }) {
   const styles: Record<TaskStatus, string> = {
     "Not Started": "bg-slate-100 text-slate-700",
@@ -300,7 +357,39 @@ const dashboardTaskDetailsByTitle: Record<
       "Design a product feature post highlighting POS inventory, sales tracking and reporting functionality for small businesses.",
   },
 };
-export default function CreativeDashboard() {
+export default function CreativeDashboard({
+  profile,
+}: {
+  profile?: EmployeeProfile;
+}) {
+  const employeeFirstName =
+    profile?.full_name
+      ?.trim()
+      .split(/\s+/)[0] ||
+    "Abdullah";
+
+  const isVideoEditor =
+    profile?.role === "video_editor";
+
+  const dashboardDepartment =
+    isVideoEditor
+      ? "Video Editing"
+      : "Graphic Design";
+
+  const dashboardTaskLabel =
+    isVideoEditor
+      ? "Video Task"
+      : "Creative Task";
+
+  const dashboardDescription =
+    isVideoEditor
+      ? "Here is your video editing workload, scheduled content and weekly progress."
+      : "Here is your creative workload, scheduled content and weekly progress.";
+
+  const roleInitialTasks =
+    isVideoEditor
+      ? videoDashboardTasks
+      : initialTasks;
   const [
     selectedDashboardTask,
     setSelectedDashboardTask,
@@ -311,7 +400,7 @@ export default function CreativeDashboard() {
   const [
     dashboardTasks,
     setDashboardTasks,
-  ] = useState<Task[]>(initialTasks);
+  ] = useState<Task[]>(roleInitialTasks);
 
 
   const [
@@ -341,7 +430,33 @@ export default function CreativeDashboard() {
     selectedTaskTitle
       ? dashboardTaskDetailsByTitle[
           selectedTaskTitle
-        ]
+        ] ??
+        (isVideoEditor
+          ? {
+              assignedAt:
+                "Assigned this week",
+              deadline: String(
+                selectedDashboardTask
+                  ?.deadline ??
+                  "Not specified",
+              ),
+              platforms: [
+                String(
+                  selectedDashboardTask
+                    ?.platform ??
+                    "Not specified",
+                ),
+              ],
+              priority:
+                "Medium" as const,
+              contentType:
+                "Video Edit",
+              department:
+                "Video Editing",
+              brief:
+                "Edit and deliver the assigned video according to the approved brief, reference material and publishing requirements.",
+            }
+          : undefined)
       : undefined;
 
 
@@ -488,12 +603,11 @@ export default function CreativeDashboard() {
               </p>
 
               <h1 className="mt-2 text-3xl font-semibold tracking-[-0.045em] sm:text-4xl">
-                Good afternoon, Abdullah
+                Good afternoon, {employeeFirstName}
               </h1>
 
               <p className="mt-2 max-w-2xl text-sm leading-6 text-[#777e89]">
-                Here is your creative workload, scheduled content and weekly
-                progress.
+                {dashboardDescription}
               </p>
             </div>
 
@@ -718,11 +832,15 @@ export default function CreativeDashboard() {
             <div className="flex flex-col justify-between gap-4 border-b border-[#f0f2f5] p-5 sm:flex-row sm:items-center sm:p-6">
               <div>
                 <h2 className="text-lg font-bold tracking-[-0.025em]">
-                  Today's Creative Tasks
+                  {isVideoEditor
+                    ? "Today's Video Tasks"
+                    : "Today's Creative Tasks"}
                 </h2>
 
                 <p className="mt-1 text-xs text-[#9299a4]">
-                  Graphic design tasks assigned for today and upcoming dates
+                  {isVideoEditor
+                    ? "Video editing tasks assigned for today and upcoming dates"
+                    : "Graphic design tasks assigned for today and upcoming dates"}
                 </p>
               </div>
 
@@ -795,7 +913,7 @@ export default function CreativeDashboard() {
                             </p>
 
                             <p className="mt-0.5 text-[11px] text-[#989fa9]">
-                              Graphic Design
+                              {dashboardDepartment}
                             </p>
                           </div>
                         </div>
@@ -988,7 +1106,7 @@ export default function CreativeDashboard() {
                 <p className="text-xs font-bold text-[#2f80ed]">
                   {String(
                     selectedDashboardTask.brand ??
-                      "Creative Task",
+                      dashboardTaskLabel,
                   )}
                 </p>
 
@@ -1029,7 +1147,7 @@ export default function CreativeDashboard() {
                       {selectedTaskDetail?.department ??
                         String(
                           selectedDashboardTask.department ??
-                            "Graphic Design",
+                            dashboardDepartment,
                         )}
                     </p>
                   </div>

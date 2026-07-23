@@ -1,5 +1,7 @@
-﻿import MySchedule from "@/components/schedule/MySchedule";
+import MySchedule from "@/components/schedule/MySchedule";
+import { requireEmployeeProfile } from "@/lib/auth/requireAppProfile";
 
-export default function SchedulePage() {
+export default async function SchedulePage() {
+  await requireEmployeeProfile();
   return <MySchedule />;
 }
