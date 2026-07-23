@@ -1,0 +1,1212 @@
+﻿"use client";
+
+import EmployeeHeader from "@/components/layout/EmployeeHeader";
+import Link from "next/link";
+import PillSelect from "@/components/ui/PillSelect";
+import { employeeNavigation } from "@/config/employeeNavigation";
+import { useMemo, useState } from "react";
+import {
+  Bell,
+  CalendarDays,
+  Check,
+  ChevronDown,
+  CircleAlert,
+  Clock3,
+  ExternalLink,
+  FileImage,
+  Film,
+  Filter,
+  LayoutDashboard,
+  Link2,
+  ListChecks,
+  Palette,
+  Search,
+  Send,
+  Sparkles,
+  Upload,
+  Users,
+  X,
+} from "lucide-react";
+
+type Department = "Graphic Design" | "Video Editing";
+
+type TaskStatus =
+  | "Not Started"
+  | "In Progress"
+  | "In Review"
+  | "Revision Required"
+  | "Approved"
+  | "Published"
+  | "Delayed";
+
+type Priority = "Low" | "Medium" | "High" | "Urgent";
+
+type WeekDay =
+  | "Monday"
+  | "Tuesday"
+  | "Wednesday"
+  | "Thursday"
+  | "Friday";
+
+type Platform =
+  | "Instagram"
+  | "Facebook"
+  | "LinkedIn"
+  | "TikTok"
+  | "YouTube";
+
+type CreativeTask = {
+  id: number;
+  brand: string;
+  title: string;
+  department: Department;
+  contentType: string;
+  platforms: Platform[];
+  day: WeekDay;
+  deadline: string;
+  status: TaskStatus;
+  priority: Priority;
+  assignedBy: string;
+  description: string;
+  referenceLink?: string;
+  submissionLink?: string;
+  publishedLink?: string;
+  delayReason?: string;
+  feedback?: string;
+};
+
+type StatusFilter = "All Statuses" | TaskStatus;
+
+type DayFilter = "All Days" | WeekDay;
+
+const currentUser = {
+  name: "Abdullah Naeem",
+  initials: "AN",
+  role: "Graphic Designer",
+  department: "Graphic Design" as Department,
+};
+
+const navigation = employeeNavigation;
+
+const statusStyles: Record<TaskStatus, string> = {
+  "Not Started": "bg-slate-100 text-slate-700",
+  "In Progress": "bg-blue-50 text-blue-700",
+  "In Review": "bg-amber-50 text-amber-700",
+  "Revision Required": "bg-orange-50 text-orange-700",
+  Approved: "bg-emerald-50 text-emerald-700",
+  Published: "bg-green-50 text-green-700",
+  Delayed: "bg-red-50 text-red-700",
+};
+
+const priorityStyles: Record<Priority, string> = {
+  Low: "bg-slate-100 text-slate-600",
+  Medium: "bg-blue-50 text-blue-700",
+  High: "bg-amber-50 text-amber-700",
+  Urgent: "bg-red-50 text-red-700",
+};
+
+const initialTasks: CreativeTask[] = [
+  {
+    id: 1,
+    brand: "Softgenie",
+    title: "AI Campaign Planner Carousel",
+    department: "Graphic Design",
+    contentType: "Carousel",
+    platforms: ["Instagram", "Facebook"],
+    day: "Monday",
+    deadline: "Monday, 11:30 AM",
+    status: "Approved",
+    priority: "High",
+    assignedBy: "HR",
+    description:
+      "Create a six-slide carousel explaining the AI campaign planning workflow. Follow the approved brochure visual language.",
+    referenceLink: "https://drive.google.com/",
+    submissionLink: "https://drive.google.com/",
+    feedback: "Approved. Typography and spacing are aligned with the brand.",
+  },
+  {
+    id: 2,
+    brand: "Softech",
+    title: "Payroll Automation Post",
+    department: "Graphic Design",
+    contentType: "Static Post",
+    platforms: ["LinkedIn"],
+    day: "Tuesday",
+    deadline: "Tuesday, 2:00 PM",
+    status: "In Review",
+    priority: "Medium",
+    assignedBy: "HR",
+    description:
+      "Create a minimal LinkedIn post highlighting the main benefit of payroll automation. Use limited copy and strong whitespace.",
+    referenceLink: "https://drive.google.com/",
+    submissionLink: "https://drive.google.com/",
+  },
+  {
+    id: 3,
+    brand: "MARK47",
+    title: "Esports Match Announcement",
+    department: "Graphic Design",
+    contentType: "Static Post",
+    platforms: ["Instagram"],
+    day: "Wednesday",
+    deadline: "Wednesday, 12:00 PM",
+    status: "In Progress",
+    priority: "Urgent",
+    assignedBy: "Manager",
+    description:
+      "Create a match announcement post using the MARK47 white and orange visual direction. Include both team names and match time.",
+    referenceLink: "https://drive.google.com/",
+  },
+  {
+    id: 4,
+    brand: "Audit Tracker",
+    title: "Audit Workflow Banner",
+    department: "Graphic Design",
+    contentType: "Banner",
+    platforms: ["LinkedIn"],
+    day: "Thursday",
+    deadline: "Thursday, 11:00 AM",
+    status: "Not Started",
+    priority: "Medium",
+    assignedBy: "Self Planned",
+    description:
+      "Create a professional banner presenting the audit workflow from planning to final reporting.",
+  },
+  {
+    id: 5,
+    brand: "Solentrix",
+    title: "Solar Energy Product Highlight",
+    department: "Graphic Design",
+    contentType: "Static Post",
+    platforms: ["Instagram", "Facebook"],
+    day: "Friday",
+    deadline: "Friday, 12:30 PM",
+    status: "Delayed",
+    priority: "High",
+    assignedBy: "HR",
+    description:
+      "Create a residential solar panel product highlight with a clean green and white visual direction.",
+    delayReason:
+      "Required solar panel product photographs client ki taraf se receive nahi hui.",
+  },
+  {
+    id: 6,
+    brand: "E-Bazaar",
+    title: "POS Features Carousel",
+    department: "Graphic Design",
+    contentType: "Carousel",
+    platforms: ["LinkedIn", "Facebook"],
+    day: "Friday",
+    deadline: "Friday, 4:00 PM",
+    status: "Revision Required",
+    priority: "Medium",
+    assignedBy: "Manager",
+    description:
+      "Create a four-slide carousel covering inventory, billing, reporting and customer management.",
+    submissionLink: "https://drive.google.com/",
+    feedback:
+      "Slide two needs less copy. Make the icons larger and increase the spacing between sections.",
+  },
+  {
+    id: 7,
+    brand: "Softech",
+    title: "Business Automation Reel",
+    department: "Video Editing",
+    contentType: "Reel",
+    platforms: ["Instagram"],
+    day: "Wednesday",
+    deadline: "Wednesday, 5:00 PM",
+    status: "In Progress",
+    priority: "Medium",
+    assignedBy: "HR",
+    description:
+      "Edit a 30-second reel explaining how automation reduces manual work.",
+  },
+];
+
+const weekDays: WeekDay[] = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+];
+
+const statuses: TaskStatus[] = [
+  "Not Started",
+  "In Progress",
+  "In Review",
+  "Revision Required",
+  "Approved",
+  "Published",
+  "Delayed",
+];
+
+const statusFilterOptions: {
+  label: string;
+  value: StatusFilter;
+}[] = [
+  {
+    label: "All Statuses",
+    value: "All Statuses",
+  },
+  ...statuses.map((status) => ({
+    label: status,
+    value: status,
+  })),
+];
+
+const dayFilterOptions: {
+  label: string;
+  value: DayFilter;
+}[] = [
+  {
+    label: "All Days",
+    value: "All Days",
+  },
+  ...weekDays.map((day) => ({
+    label: day,
+    value: day,
+  })),
+];
+
+function StatusBadge({ status }: { status: TaskStatus }) {
+  return (
+    <span
+      className={`inline-flex rounded-full px-3 py-1.5 text-[10px] font-bold ${statusStyles[status]}`}
+    >
+      {status}
+    </span>
+  );
+}
+
+function PriorityBadge({ priority }: { priority: Priority }) {
+  return (
+    <span
+      className={`inline-flex rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.05em] ${priorityStyles[priority]}`}
+    >
+      {priority}
+    </span>
+  );
+}
+
+function ProgressMeter({
+  percentage,
+  label,
+}: {
+  percentage: number;
+  label: string;
+}) {
+  return (
+    <div>
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold text-[#626a75]">
+          {label}
+        </p>
+
+        <p className="text-xs font-bold text-[#2f80ed]">
+          {percentage}%
+        </p>
+      </div>
+
+      <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-[#edf1f6]">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-[#176fe8] to-[#6aa9ff] transition-all duration-500"
+          style={{
+            width: `${percentage}%`,
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+export default function MyTasks() {
+  const departmentTasks = useMemo(
+    () =>
+      initialTasks.filter(
+        (task) => task.department === currentUser.department,
+      ),
+    [],
+  );
+
+  const [tasks, setTasks] =
+    useState<CreativeTask[]>(departmentTasks);
+
+  const [selectedTaskId, setSelectedTaskId] =
+    useState<number | null>(null);
+
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const [statusFilter, setStatusFilter] =
+    useState<StatusFilter>("All Statuses");
+
+  const [dayFilter, setDayFilter] =
+    useState<DayFilter>("All Days");
+
+  const [submissionLink, setSubmissionLink] = useState("");
+
+  const [publishedLink, setPublishedLink] = useState("");
+
+  const [delayReason, setDelayReason] = useState("");
+
+  const [showDelayForm, setShowDelayForm] = useState(false);
+
+  const selectedTask =
+    tasks.find((task) => task.id === selectedTaskId) ?? null;
+
+  const filteredTasks = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+
+    return tasks.filter((task) => {
+      const searchMatches =
+        query.length === 0 ||
+        task.title.toLowerCase().includes(query) ||
+        task.brand.toLowerCase().includes(query) ||
+        task.contentType.toLowerCase().includes(query);
+
+      const statusMatches =
+        statusFilter === "All Statuses" ||
+        task.status === statusFilter;
+
+      const dayMatches =
+        dayFilter === "All Days" ||
+        task.day === dayFilter;
+
+      return searchMatches && statusMatches && dayMatches;
+    });
+  }, [tasks, searchQuery, statusFilter, dayFilter]);
+
+  const stats = useMemo(() => {
+    const total = tasks.length;
+
+    const completed = tasks.filter((task) =>
+      ["Approved", "Published"].includes(task.status),
+    ).length;
+
+    const active = tasks.filter((task) =>
+      ["In Progress", "In Review", "Revision Required"].includes(
+        task.status,
+      ),
+    ).length;
+
+    const delayed = tasks.filter(
+      (task) => task.status === "Delayed",
+    ).length;
+
+    const todayTasks = tasks.filter(
+      (task) => task.day === "Wednesday",
+    );
+
+    const todayCompleted = todayTasks.filter((task) =>
+      ["Approved", "Published"].includes(task.status),
+    ).length;
+
+    const weeklyPercentage =
+      total === 0
+        ? 0
+        : Math.round((completed / total) * 100);
+
+    const dailyPercentage =
+      todayTasks.length === 0
+        ? 0
+        : Math.round(
+            (todayCompleted / todayTasks.length) * 100,
+          );
+
+    return {
+      total,
+      completed,
+      active,
+      delayed,
+      todayTasks: todayTasks.length,
+      todayCompleted,
+      weeklyPercentage,
+      dailyPercentage,
+    };
+  }, [tasks]);
+
+  function openTask(task: CreativeTask) {
+    setSelectedTaskId(task.id);
+    setSubmissionLink(task.submissionLink ?? "");
+    setPublishedLink(task.publishedLink ?? "");
+    setDelayReason(task.delayReason ?? "");
+    setShowDelayForm(task.status === "Delayed");
+  }
+
+  function closeDrawer() {
+    setSelectedTaskId(null);
+    setSubmissionLink("");
+    setPublishedLink("");
+    setDelayReason("");
+    setShowDelayForm(false);
+  }
+
+  function updateSelectedTask(
+    updates: Partial<CreativeTask>,
+  ) {
+    if (!selectedTaskId) {
+      return;
+    }
+
+    setTasks((currentTasks) =>
+      currentTasks.map((task) =>
+        task.id === selectedTaskId
+          ? {
+              ...task,
+              ...updates,
+            }
+          : task,
+      ),
+    );
+  }
+
+  function handleStatusChange(status: TaskStatus) {
+    if (status === "Delayed") {
+      setShowDelayForm(true);
+      return;
+    }
+
+    setShowDelayForm(false);
+
+    updateSelectedTask({
+      status,
+      delayReason: undefined,
+    });
+  }
+
+  function saveDelay() {
+    if (!delayReason.trim()) {
+      return;
+    }
+
+    updateSelectedTask({
+      status: "Delayed",
+      delayReason: delayReason.trim(),
+    });
+
+    setShowDelayForm(false);
+  }
+
+  function saveSubmission() {
+    if (!submissionLink.trim()) {
+      return;
+    }
+
+    updateSelectedTask({
+      submissionLink: submissionLink.trim(),
+      status: "In Review",
+    });
+  }
+
+  function savePublishedLink() {
+    if (!publishedLink.trim()) {
+      return;
+    }
+
+    updateSelectedTask({
+      publishedLink: publishedLink.trim(),
+      status: "Published",
+    });
+  }
+
+  return (
+    <main className="min-h-screen bg-[#e7ebf2] p-3 sm:p-6 xl:p-10">
+      <section className="mx-auto w-full max-w-[1600px] overflow-hidden rounded-[26px] border border-white/80 bg-[#fbfcfe] shadow-[0_30px_80px_rgba(50,63,86,0.10)]">
+        <EmployeeHeader />
+
+        <div className="px-4 py-7 sm:px-6 sm:py-8">
+          <section className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
+            <div>
+              <p className="text-sm font-semibold text-[#2f80ed]">
+                {currentUser.department}
+              </p>
+
+              <h1 className="mt-2 text-3xl font-semibold tracking-[-0.045em] sm:text-4xl">
+                My Tasks
+              </h1>
+
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-[#777e89]">
+                Apne assigned creative tasks manage karo,
+                submissions upload karo aur daily progress update
+                karo.
+              </p>
+            </div>
+
+            <div className="rounded-full border border-[#e7ebf0] bg-white px-5 py-3 text-xs font-bold text-[#59616d] shadow-sm">
+              Wednesday, 22 July 2026
+            </div>
+          </section>
+
+          <section className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <article className="rounded-[22px] bg-gradient-to-br from-[#176fe8] to-[#6baaff] p-5 text-white shadow-[0_18px_40px_rgba(47,128,237,0.20)]">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-sm text-white/75">
+                    Total Tasks
+                  </p>
+
+                  <p className="mt-3 text-3xl font-semibold">
+                    {stats.total}
+                  </p>
+
+                  <p className="mt-3 text-xs text-white/70">
+                    Assigned for this week
+                  </p>
+                </div>
+
+                <div className="grid size-11 place-items-center rounded-full bg-white text-[#2f80ed]">
+                  <ListChecks size={20} />
+                </div>
+              </div>
+            </article>
+
+            <article className="rounded-[22px] border border-[#edf0f5] bg-white p-5">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-sm text-[#7d8490]">
+                    Completed
+                  </p>
+
+                  <p className="mt-3 text-3xl font-semibold">
+                    {stats.completed}
+                  </p>
+
+                  <p className="mt-3 text-xs text-[#959ca7]">
+                    Approved or published
+                  </p>
+                </div>
+
+                <div className="grid size-11 place-items-center rounded-full bg-emerald-50 text-emerald-600">
+                  <Check size={20} />
+                </div>
+              </div>
+            </article>
+
+            <article className="rounded-[22px] border border-[#edf0f5] bg-white p-5">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-sm text-[#7d8490]">
+                    Active Tasks
+                  </p>
+
+                  <p className="mt-3 text-3xl font-semibold">
+                    {stats.active}
+                  </p>
+
+                  <p className="mt-3 text-xs text-[#959ca7]">
+                    Production and review
+                  </p>
+                </div>
+
+                <div className="grid size-11 place-items-center rounded-full bg-blue-50 text-blue-600">
+                  <Clock3 size={20} />
+                </div>
+              </div>
+            </article>
+
+            <article className="rounded-[22px] border border-[#edf0f5] bg-white p-5">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-sm text-[#7d8490]">
+                    Delayed
+                  </p>
+
+                  <p className="mt-3 text-3xl font-semibold">
+                    {stats.delayed}
+                  </p>
+
+                  <p className="mt-3 text-xs text-[#959ca7]">
+                    Reason required
+                  </p>
+                </div>
+
+                <div className="grid size-11 place-items-center rounded-full bg-red-50 text-red-600">
+                  <CircleAlert size={20} />
+                </div>
+              </div>
+            </article>
+          </section>
+
+          <section className="mt-5 grid gap-5 lg:grid-cols-2">
+            <article className="rounded-[22px] border border-[#edf0f5] bg-white p-5 shadow-[0_12px_35px_rgba(24,39,75,0.035)]">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-sm font-bold">
+                    Daily Progress
+                  </h2>
+
+                  <p className="mt-1 text-xs text-[#9299a4]">
+                    {stats.todayCompleted} of{" "}
+                    {stats.todayTasks} tasks completed today
+                  </p>
+                </div>
+
+                <div className="grid size-10 place-items-center rounded-full bg-[#edf5ff] text-[#2f80ed]">
+                  <CalendarDays size={18} />
+                </div>
+              </div>
+
+              <div className="mt-6">
+                <ProgressMeter
+                  percentage={stats.dailyPercentage}
+                  label="Today's completion"
+                />
+              </div>
+            </article>
+
+            <article className="rounded-[22px] border border-[#edf0f5] bg-white p-5 shadow-[0_12px_35px_rgba(24,39,75,0.035)]">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-sm font-bold">
+                    Weekly Progress
+                  </h2>
+
+                  <p className="mt-1 text-xs text-[#9299a4]">
+                    {stats.completed} of {stats.total} tasks
+                    completed
+                  </p>
+                </div>
+
+                <div className="grid size-10 place-items-center rounded-full bg-emerald-50 text-emerald-600">
+                  <Check size={18} />
+                </div>
+              </div>
+
+              <div className="mt-6">
+                <ProgressMeter
+                  percentage={stats.weeklyPercentage}
+                  label="Weekly completion"
+                />
+              </div>
+            </article>
+          </section>
+
+          <section className="mt-5 rounded-[24px] border border-[#edf0f5] bg-white shadow-[0_15px_42px_rgba(24,39,75,0.04)]">
+            <div className="flex flex-col justify-between gap-4 border-b border-[#f0f2f5] p-5 lg:flex-row lg:items-center sm:p-6">
+              <div>
+                <h2 className="text-lg font-bold">
+                  Assigned Tasks
+                </h2>
+
+                <p className="mt-1 text-xs text-[#9299a4]">
+                  Sirf {currentUser.department.toLowerCase()} tasks
+                  visible hain.
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <label className="flex h-11 min-w-[220px] items-center gap-2.5 rounded-full bg-[#f5f7fa] px-4">
+                  <Search
+                    size={15}
+                    className="text-[#858c97]"
+                  />
+
+                  <input
+                    type="search"
+                    value={searchQuery}
+                    onChange={(event) =>
+                      setSearchQuery(event.target.value)
+                    }
+                    placeholder="Search tasks..."
+                    className="w-full bg-transparent text-xs outline-none sm:w-48"
+                  />
+                </label>
+
+                <PillSelect
+                  icon={Filter}
+                  ariaLabel="Filter tasks by status"
+                  value={statusFilter}
+                  options={statusFilterOptions}
+                  onValueChange={setStatusFilter}
+                />
+
+                <PillSelect
+                  icon={CalendarDays}
+                  ariaLabel="Filter tasks by day"
+                  value={dayFilter}
+                  options={dayFilterOptions}
+                  onValueChange={setDayFilter}
+                />
+              </div>
+            </div>
+
+            <div className="dashboard-scrollbar overflow-x-auto">
+              <table className="w-full min-w-[1080px] border-collapse text-left">
+                <thead>
+                  <tr className="bg-[#fafbfc] text-[11px] uppercase tracking-[0.08em] text-[#949ba6]">
+                    <th className="px-6 py-4 font-semibold uppercase tracking-[0.08em]">
+                      Task
+                    </th>
+
+                    <th className="px-6 py-4 font-semibold uppercase tracking-[0.08em]">
+                      Schedule
+                    </th>
+
+                    <th className="px-6 py-4 font-semibold uppercase tracking-[0.08em]">
+                      Platforms
+                    </th>
+
+                    <th className="px-6 py-4 font-semibold uppercase tracking-[0.08em]">
+                      Priority
+                    </th>
+
+                    <th className="px-6 py-4 font-semibold uppercase tracking-[0.08em]">
+                      Status
+                    </th>
+
+                    <th className="w-[190px] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-[#949ba6]">
+  ACTION
+</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {filteredTasks.map((task) => (
+                    <tr
+                      key={task.id}
+                      className="border-t border-[#f0f2f5] transition hover:bg-[#fafcff]"
+                    >
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-[#edf5ff] text-[#2f80ed]">
+                            {task.department ===
+                            "Graphic Design" ? (
+                              <FileImage size={18} />
+                            ) : (
+                              <Film size={18} />
+                            )}
+                          </div>
+
+                          <div>
+                            <p className="text-sm font-bold">
+                              {task.title}
+                            </p>
+
+                            <p className="mt-1 text-[11px] text-[#8f96a1]">
+                              {task.brand} ·{" "}
+                              {task.contentType}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="px-6 py-4">
+                        <p className="text-sm font-semibold text-[#555d68]">
+                          {task.day}
+                        </p>
+
+                        <p className="mt-1 text-[11px] text-[#9299a4]">
+                          {task.deadline}
+                        </p>
+                      </td>
+
+                      <td className="px-6 py-4">
+                        <div className="flex flex-wrap gap-1.5">
+                          {task.platforms.map((platform) => (
+                            <span
+                              key={platform}
+                              className="rounded-full border border-[#e8ecf2] bg-white px-2.5 py-1 text-[9px] font-semibold text-[#69717d]"
+                            >
+                              {platform}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+
+                      <td className="px-6 py-4">
+                        <PriorityBadge
+                          priority={task.priority}
+                        />
+                      </td>
+
+                      <td className="px-6 py-4">
+                        <StatusBadge status={task.status} />
+                      </td>
+
+                      <td className="w-[190px] px-6 py-4 text-left">
+
+                        <div className="flex justify-start gap-2">
+                          <button
+                            type="button"
+                            onClick={() => openTask(task)}
+                            className="flex items-center gap-2 rounded-full border border-[#e6eaf0] px-4 py-2 text-[10px] font-bold text-[#4f5762] transition hover:border-[#2f80ed] hover:text-[#2f80ed]"
+                          >
+                            Open Task
+                            <ExternalLink size={13} />
+                          </button>
+
+                          
+                        </div>
+                      
+</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {filteredTasks.length === 0 ? (
+                <div className="grid min-h-64 place-items-center p-8 text-center">
+                  <div>
+                    <Search
+                      size={26}
+                      className="mx-auto text-[#adb4bf]"
+                    />
+
+                    <p className="mt-3 text-sm font-bold">
+                      No matching tasks
+                    </p>
+
+                    <p className="mt-1 text-xs text-[#9299a4]">
+                      Search ya filters change karke dobara
+                      check karo.
+                    </p>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </section>
+        </div>
+      </section>
+
+      {selectedTask ? (
+        <>
+          <button
+            type="button"
+            aria-label="Close task drawer"
+            onClick={closeDrawer}
+            className="fixed inset-0 z-40 bg-[#111827]/35 backdrop-blur-[2px]"
+          />
+
+          <aside className="dashboard-scrollbar fixed inset-y-0 right-0 z-50 w-full max-w-[560px] overflow-y-auto bg-white shadow-[-30px_0_80px_rgba(15,23,42,0.18)]">
+            <header className="sticky top-0 z-10 flex items-center justify-between border-b border-[#edf0f5] bg-white/95 p-5 backdrop-blur-xl sm:p-6">
+              <div>
+                <p className="text-xs font-bold text-[#2f80ed]">
+                  {selectedTask.brand}
+                </p>
+
+                <h2 className="mt-1 text-xl font-bold tracking-[-0.03em]">
+                  Task Details
+                </h2>
+              </div>
+
+              <button
+                type="button"
+                onClick={closeDrawer}
+                className="grid size-10 place-items-center rounded-full bg-[#f4f6f9]"
+              >
+                <X size={18} />
+              </button>
+            </header>
+
+            <div className="space-y-6 p-5 sm:p-6">
+              <section>
+                <div className="flex flex-wrap items-center gap-2">
+                  <StatusBadge
+                    status={selectedTask.status}
+                  />
+
+                  <PriorityBadge
+                    priority={selectedTask.priority}
+                  />
+                </div>
+
+                <h3 className="mt-4 text-2xl font-bold leading-tight tracking-[-0.04em]">
+                  {selectedTask.title}
+                </h3>
+
+                <p className="mt-3 text-sm leading-7 text-[#737b86]">
+                  {selectedTask.description}
+                </p>
+              </section>
+
+              <section className="grid grid-cols-2 gap-3">
+                <div className="rounded-2xl bg-[#f7f9fc] p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#969da8]">
+                    Content Type
+                  </p>
+
+                  <p className="mt-2 text-sm font-bold">
+                    {selectedTask.contentType}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl bg-[#f7f9fc] p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#969da8]">
+                    Assigned By
+                  </p>
+
+                  <p className="mt-2 text-sm font-bold">
+                    {selectedTask.assignedBy}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl bg-[#f7f9fc] p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#969da8]">
+                    Scheduled Day
+                  </p>
+
+                  <p className="mt-2 text-sm font-bold">
+                    {selectedTask.day}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl bg-[#f7f9fc] p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#969da8]">
+                    Deadline
+                  </p>
+
+                  <p className="mt-2 text-sm font-bold">
+                    {selectedTask.deadline}
+                  </p>
+                </div>
+              </section>
+
+              <section>
+                <p className="text-xs font-bold text-[#4e5661]">
+                  Publishing Platforms
+                </p>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {selectedTask.platforms.map((platform) => (
+                    <span
+                      key={platform}
+                      className="rounded-full bg-[#edf5ff] px-3 py-2 text-[10px] font-bold text-[#2f80ed]"
+                    >
+                      {platform}
+                    </span>
+                  ))}
+                </div>
+              </section>
+
+              {selectedTask.referenceLink ? (
+                <section className="rounded-2xl border border-[#e7ebf0] p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="grid size-10 place-items-center rounded-xl bg-[#edf5ff] text-[#2f80ed]">
+                        <Link2 size={17} />
+                      </div>
+
+                      <div>
+                        <p className="text-xs font-bold">
+                          Reference Material
+                        </p>
+
+                        <p className="mt-1 text-[10px] text-[#9299a4]">
+                          Brief, copy or visual references
+                        </p>
+                      </div>
+                    </div>
+
+                    <a
+                      href={selectedTask.referenceLink}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="grid size-9 place-items-center rounded-full border border-[#e7ebf0] text-[#2f80ed]"
+                    >
+                      <ExternalLink size={15} />
+                    </a>
+                  </div>
+                </section>
+              ) : null}
+
+              <section>
+                <label className="text-xs font-bold text-[#4e5661]">
+                  Update Status
+                </label>
+
+                <select
+                  value={selectedTask.status}
+                  onChange={(event) =>
+                    handleStatusChange(
+                      event.target.value as TaskStatus,
+                    )
+                  }
+                  className="mt-2 w-full rounded-2xl border border-[#e2e7ed] bg-white px-4 py-3 text-sm font-semibold outline-none focus:border-[#2f80ed]"
+                >
+                  {statuses.map((status) => (
+                    <option key={status} value={status}>
+                      {status}
+                    </option>
+                  ))}
+                </select>
+              </section>
+
+              {showDelayForm ? (
+                <section className="rounded-[20px] border border-red-100 bg-red-50 p-4">
+                  <div className="flex items-center gap-3">
+                    <CircleAlert
+                      size={18}
+                      className="text-red-600"
+                    />
+
+                    <div>
+                      <p className="text-xs font-bold text-red-700">
+                        Delay reason required
+                      </p>
+
+                      <p className="mt-1 text-[10px] text-red-600">
+                        Task delayed mark karne se pehle reason
+                        enter karo.
+                      </p>
+                    </div>
+                  </div>
+
+                  <textarea
+                    value={delayReason}
+                    onChange={(event) =>
+                      setDelayReason(event.target.value)
+                    }
+                    rows={4}
+                    placeholder="Example: Required content ya client assets pending hain."
+                    className="mt-4 w-full resize-none rounded-2xl border border-red-100 bg-white p-4 text-sm leading-6 outline-none focus:border-red-400"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={saveDelay}
+                    disabled={!delayReason.trim()}
+                    className="mt-3 w-full rounded-full bg-red-600 px-5 py-3 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Save Delay Reason
+                  </button>
+                </section>
+              ) : null}
+
+              {selectedTask.delayReason ? (
+                <section className="rounded-[20px] bg-red-50 p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-red-500">
+                    Current Delay Reason
+                  </p>
+
+                  <p className="mt-2 text-sm leading-6 text-red-700">
+                    {selectedTask.delayReason}
+                  </p>
+                </section>
+              ) : null}
+
+              <section className="rounded-[22px] border border-[#e7ebf0] p-4">
+                <div className="flex items-center gap-3">
+                  <div className="grid size-10 place-items-center rounded-xl bg-[#edf5ff] text-[#2f80ed]">
+                    <Upload size={17} />
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-bold">
+                      Submit Creative Work
+                    </p>
+
+                    <p className="mt-1 text-[10px] text-[#9299a4]">
+                      Google Drive, Figma, Canva ya storage link
+                    </p>
+                  </div>
+                </div>
+
+                <input
+                  type="url"
+                  value={submissionLink}
+                  onChange={(event) =>
+                    setSubmissionLink(event.target.value)
+                  }
+                  placeholder="Paste submission link"
+                  className="mt-4 w-full rounded-2xl border border-[#e2e7ed] px-4 py-3 text-sm outline-none focus:border-[#2f80ed]"
+                />
+
+                <button
+                  type="button"
+                  onClick={saveSubmission}
+                  disabled={!submissionLink.trim()}
+                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-[#2f80ed] px-5 py-3 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <Send size={14} />
+                  Submit for Review
+                </button>
+              </section>
+
+              <section className="rounded-[22px] border border-[#e7ebf0] p-4">
+                <div className="flex items-center gap-3">
+                  <div className="grid size-10 place-items-center rounded-xl bg-emerald-50 text-emerald-600">
+                    <ExternalLink size={17} />
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-bold">
+                      Published Content Link
+                    </p>
+
+                    <p className="mt-1 text-[10px] text-[#9299a4]">
+                      Instagram, LinkedIn, Facebook ya other
+                      platform link
+                    </p>
+                  </div>
+                </div>
+
+                <input
+                  type="url"
+                  value={publishedLink}
+                  onChange={(event) =>
+                    setPublishedLink(event.target.value)
+                  }
+                  placeholder="Paste published post or reel link"
+                  className="mt-4 w-full rounded-2xl border border-[#e2e7ed] px-4 py-3 text-sm outline-none focus:border-[#2f80ed]"
+                />
+
+                <button
+                  type="button"
+                  onClick={savePublishedLink}
+                  disabled={!publishedLink.trim()}
+                  className="mt-3 w-full rounded-full bg-emerald-600 px-5 py-3 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Mark as Published
+                </button>
+              </section>
+
+              {selectedTask.submissionLink ? (
+                <a
+                  href={selectedTask.submissionLink}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center justify-between rounded-[18px] bg-[#edf5ff] p-4 text-[#2f80ed]"
+                >
+                  <div>
+                    <p className="text-xs font-bold">
+                      Current Submission
+                    </p>
+
+                    <p className="mt-1 text-[10px]">
+                      Open submitted creative work
+                    </p>
+                  </div>
+
+                  <ExternalLink size={16} />
+                </a>
+              ) : null}
+
+              {selectedTask.feedback ? (
+                <section className="rounded-[20px] bg-amber-50 p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-amber-600">
+                    Manager Feedback
+                  </p>
+
+                  <p className="mt-2 text-sm leading-6 text-amber-800">
+                    {selectedTask.feedback}
+                  </p>
+                </section>
+              ) : null}
+            </div>
+          </aside>
+        </>
+      ) : null}
+    </main>
+  );
+}
+
+
+
+
+
+
+
+
+
+
