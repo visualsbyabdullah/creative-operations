@@ -441,37 +441,6 @@ export default function MySchedule() {
             </div>
           </section>
 
-          <section className="mt-7 rounded-[22px] border border-blue-100 bg-blue-50/60 p-4">
-            <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-              <div>
-                <p className="text-xs font-bold text-[#2f80ed]">
-                  Prototype role preview
-                </p>
-
-                <p className="mt-1 text-xs leading-5 text-[#6f7682]">
-                  Production mein role login ke
-                  according automatically select
-                  hoga. Abhi testing ke liye switch
-                  available hai.
-                </p>
-              </div>
-
-              <PillSelect
-                icon={
-                  selectedDepartment ===
-                  "Graphic Design"
-                    ? FileImage
-                    : Film
-                }
-                ariaLabel="Preview employee role"
-                value={selectedDepartment}
-                options={departmentOptions}
-                onValueChange={
-                  setSelectedDepartment
-                }
-              />
-            </div>
-          </section>
 
           <section className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <article className="rounded-[22px] bg-gradient-to-br from-[#176fe8] to-[#6baaff] p-5 text-white shadow-[0_18px_40px_rgba(47,128,237,0.20)]">

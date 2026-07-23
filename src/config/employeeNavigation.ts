@@ -8,7 +8,7 @@
 export const employeeNavigation = [
   {
     label: "Dashboard",
-    href: "/",
+    href: "/dashboard",
     icon: LayoutDashboard,
   },
   {
@@ -27,3 +27,4 @@ export const employeeNavigation = [
     icon: Send,
   },
 ];
+

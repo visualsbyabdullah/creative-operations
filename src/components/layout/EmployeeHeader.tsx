@@ -14,7 +14,6 @@ import {
   LogOut,
   Menu,
   Palette,
-  Settings,
   UserRound,
   X,
 } from "lucide-react";
@@ -224,29 +223,11 @@ export default function EmployeeHeader({
                     <Link
                       href="/profile"
                       role="menuitem"
-                      onClick={() =>
-                        setIsProfileMenuOpen(
-                          false,
-                        )
-                      }
+                      onClick={() => setIsProfileMenuOpen(false)}
                       className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-semibold text-[#555d68] transition hover:bg-[#f4f7fa] hover:text-[#15181d]"
                     >
                       <UserRound size={15} />
-                      My Profile
-                    </Link>
-
-                    <Link
-                      href="/settings"
-                      role="menuitem"
-                      onClick={() =>
-                        setIsProfileMenuOpen(
-                          false,
-                        )
-                      }
-                      className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-semibold text-[#555d68] transition hover:bg-[#f4f7fa] hover:text-[#15181d]"
-                    >
-                      <Settings size={15} />
-                      Settings
+                      Profile & Settings
                     </Link>
 
                     <button
@@ -355,29 +336,12 @@ export default function EmployeeHeader({
               </Link>
 
               <Link
-                href="/settings"
-                onClick={() =>
-                  setIsMobileNavigationOpen(
-                    false,
-                  )
-                }
-                className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold text-[#626a75] hover:bg-[#f5f7fa]"
-              >
-                <Settings size={17} />
-                Settings
-              </Link>
-
-              <Link
                 href="/profile"
-                onClick={() =>
-                  setIsMobileNavigationOpen(
-                    false,
-                  )
-                }
+                onClick={() => setIsMobileNavigationOpen(false)}
                 className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold text-[#626a75] hover:bg-[#f5f7fa]"
               >
                 <UserRound size={17} />
-                My Profile
+                Profile & Settings
               </Link>
             </nav>
           </aside>

@@ -285,14 +285,6 @@ export default function EmployeeProfileSettings() {
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={saveProfile}
-              className="flex items-center gap-2 rounded-full bg-[#2f80ed] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-200 transition hover:bg-[#1769d2]"
-            >
-              <Save size={17} />
-              Save Changes
-            </button>
           </section>
 
           {saveMessage ? (
@@ -302,34 +294,6 @@ export default function EmployeeProfileSettings() {
             </div>
           ) : null}
 
-          <section className="mt-7 rounded-[22px] border border-blue-100 bg-blue-50/60 p-4">
-            <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-              <div>
-                <p className="text-xs font-bold text-[#2f80ed]">
-                  Prototype role preview
-                </p>
-
-                <p className="mt-1 text-xs leading-5 text-[#6f7682]">
-                  Production mein employee profile
-                  login account ke through automatic
-                  load hogi.
-                </p>
-              </div>
-
-              <PillSelect
-                icon={
-                  selectedDepartment ===
-                  "Graphic Design"
-                    ? FileImage
-                    : Film
-                }
-                ariaLabel="Preview employee role"
-                value={selectedDepartment}
-                options={departmentOptions}
-                onValueChange={switchDepartment}
-              />
-            </div>
-          </section>
 
           <section className="mt-5 grid gap-5 xl:grid-cols-[340px_minmax(0,1fr)]">
             <aside className="space-y-5">
@@ -593,25 +557,9 @@ export default function EmployeeProfileSettings() {
                 </div>
               </section>
 
-              <section className="rounded-[24px] border border-[#edf0f5] bg-white p-5 shadow-[0_12px_35px_rgba(24,39,75,0.035)] sm:p-6">
-                <div className="flex items-center gap-3">
-                  <div className="grid size-10 place-items-center rounded-xl bg-amber-50 text-amber-600">
-                    <Bell size={17} />
-                  </div>
+              <section className="rounded-[24px] border border-[#edf0f5] bg-white px-5 pb-5 pt-2 shadow-[0_12px_35px_rgba(24,39,75,0.035)] sm:px-6 sm:pb-6 sm:pt-2">
 
-                  <div>
-                    <h2 className="text-sm font-bold">
-                      Notification Preferences
-                    </h2>
-
-                    <p className="mt-1 text-[10px] text-[#9299a4]">
-                      Select karo kis type ke updates
-                      receive karne hain
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-4">
+                <div>
                   <SettingsRow
                     icon={BriefcaseBusiness}
                     title="New task assignments"
@@ -868,14 +816,23 @@ export default function EmployeeProfileSettings() {
                   </label>
                 </div>
 
-                <div className="mt-5 flex justify-end">
+                <div className="mt-6 flex flex-wrap items-center justify-center gap-3 border-t border-[#edf0f5] pt-6">
                   <button
                     type="button"
                     onClick={updatePassword}
-                    className="flex items-center gap-2 rounded-full border border-[#dfe5ed] px-5 py-2.5 text-xs font-bold text-[#4f5762] transition hover:border-[#2f80ed] hover:text-[#2f80ed]"
+                    className="flex min-w-[175px] items-center justify-center gap-2 rounded-full border border-[#dfe5ed] bg-white px-6 py-3 text-xs font-bold text-[#4f5762] transition hover:border-[#2f80ed] hover:text-[#2f80ed]"
                   >
                     <LockKeyhole size={15} />
                     Update Password
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={saveProfile}
+                    className="flex min-w-[175px] items-center justify-center gap-2 rounded-full bg-[#2f80ed] px-6 py-3 text-xs font-bold text-white shadow-lg shadow-blue-200 transition hover:bg-[#1769d2]"
+                  >
+                    <Save size={15} />
+                    Save Changes
                   </button>
                 </div>
               </section>
@@ -886,4 +843,5 @@ export default function EmployeeProfileSettings() {
     </main>
   );
 }
+
 
