@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import EmployeeHeader from "@/components/layout/EmployeeHeader";
 import Link from "next/link";
@@ -15,7 +15,6 @@ import {
   ExternalLink,
   FileImage,
   Film,
-  Filter,
   LayoutDashboard,
   Link2,
   ListChecks,
@@ -187,7 +186,7 @@ const initialTasks: CreativeTask[] = [
     description:
       "Create a residential solar panel product highlight with a clean green and white visual direction.",
     delayReason:
-      "Required solar panel product photographs client ki taraf se receive nahi hui.",
+      "The required solar panel product photographs have not been received from the client.",
   },
   {
     id: 6,
@@ -527,9 +526,7 @@ export default function MyTasks() {
               </h1>
 
               <p className="mt-2 max-w-2xl text-sm leading-6 text-[#777e89]">
-                Apne assigned creative tasks manage karo,
-                submissions upload karo aur daily progress update
-                karo.
+                Manage your assigned creative tasks, upload submissions and update daily progress.
               </p>
             </div>
 
@@ -690,7 +687,7 @@ export default function MyTasks() {
                 </h2>
 
                 <p className="mt-1 text-xs text-[#9299a4]">
-                  Sirf {currentUser.department.toLowerCase()} tasks
+                  Only {currentUser.department.toLowerCase()} tasks
                   visible hain.
                 </p>
               </div>
@@ -714,7 +711,7 @@ export default function MyTasks() {
                 </label>
 
                 <PillSelect
-                  icon={Filter}
+                  icon={Check}
                   ariaLabel="Filter tasks by status"
                   value={statusFilter}
                   options={statusFilterOptions}
@@ -858,8 +855,7 @@ export default function MyTasks() {
                     </p>
 
                     <p className="mt-1 text-xs text-[#9299a4]">
-                      Search ya filters change karke dobara
-                      check karo.
+                      Adjust the search or filters and try again.
                     </p>
                   </div>
                 </div>

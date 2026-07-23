@@ -154,7 +154,7 @@ const initialNotifications: EmployeeNotification[] = [
     isRead: false,
     actionHref: "/submissions",
     feedback:
-      "Slide two ki heading shorter karo aur CTA ko zyada prominent rakho.",
+      "Shorten the heading on slide two and make the CTA more prominent.",
   },
   {
     id: 3,
@@ -226,7 +226,7 @@ const initialNotifications: EmployeeNotification[] = [
     isRead: false,
     actionHref: "/submissions",
     feedback:
-      "Opening three seconds ko faster karo aur captions ka size increase karo.",
+      "Make the opening three seconds faster and increase the caption size.",
   },
   {
     id: 8,
@@ -509,7 +509,7 @@ export default function NotificationsCenter() {
               <p className="mt-2 max-w-2xl text-sm leading-6 text-[#777e89]">
                 Task assignments, approvals,
                 revisions aur deadline reminders
-                ek jagah dekho.
+                in one place.
               </p>
             </div>
 
@@ -524,36 +524,6 @@ export default function NotificationsCenter() {
             </button>
           </section>
 
-          <section className="mt-7 rounded-[22px] border border-blue-100 bg-blue-50/60 p-4">
-            <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-              <div>
-                <p className="text-xs font-bold text-[#2f80ed]">
-                  Prototype role preview
-                </p>
-
-                <p className="mt-1 text-xs leading-5 text-[#6f7682]">
-                  Production mein sirf logged-in
-                  employee ki notifications show
-                  hongi.
-                </p>
-              </div>
-
-              <PillSelect
-                icon={
-                  selectedDepartment ===
-                  "Graphic Design"
-                    ? FileImage
-                    : Film
-                }
-                ariaLabel="Preview employee role"
-                value={selectedDepartment}
-                options={departmentOptions}
-                onValueChange={
-                  setSelectedDepartment
-                }
-              />
-            </div>
-          </section>
 
           <section className="page-section-gap grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <article className="kpi-card-hover rounded-[22px] bg-brand-blue-gradient p-5 text-white shadow-[0_18px_40px_rgba(47,128,237,0.20)]">
@@ -790,7 +760,7 @@ export default function NotificationsCenter() {
                   </p>
 
                   <p className="mt-1 text-xs text-[#9299a4]">
-                    Search ya filters change karo.
+                    Adjust the search or filters.
                   </p>
                 </div>
               </div>

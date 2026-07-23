@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useMemo, useState } from "react";
 
@@ -171,7 +171,7 @@ const initialSubmissions: Submission[] = [
     finalLink:
       "https://drive.google.com/",
     feedback:
-      "Slide two ki heading ko shorter karo aur CTA ko zyada prominent rakho.",
+      "Shorten the heading on slide two and make the CTA more prominent.",
     revisionNumber: 2,
   },
   {
@@ -235,7 +235,7 @@ const initialSubmissions: Submission[] = [
     finalLink:
       "https://drive.google.com/",
     feedback:
-      "Opening three seconds ko faster karo aur captions ka size increase karo.",
+      "Make the opening three seconds faster and increase the caption size.",
     revisionNumber: 2,
   },
   {
@@ -824,7 +824,7 @@ export default function SubmissionsManagement() {
                   </p>
 
                   <p className="mt-1 text-xs text-[#9299a4]">
-                    Search ya filters change karo.
+                    Adjust the search or filters.
                   </p>
                 </div>
               </div>
@@ -1067,7 +1067,7 @@ export default function SubmissionsManagement() {
 
                 <p className="mt-1 text-xs text-[#8b929d]">
                   Task ka final work aur source
-                  links submit karo.
+                  submit the required links.
                 </p>
               </div>
 

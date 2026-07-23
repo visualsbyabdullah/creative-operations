@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 
@@ -151,7 +151,7 @@ export default function EmployeeSettings() {
       !password.confirm
     ) {
       showMessage(
-        "Password ke tamam fields complete karo.",
+        "Complete all password fields.",
       );
       return;
     }
@@ -161,7 +161,7 @@ export default function EmployeeSettings() {
       password.confirm
     ) {
       showMessage(
-        "New password aur confirmation match nahi kar rahe.",
+        "The new password and confirmation do not match.",
       );
       return;
     }
@@ -195,7 +195,7 @@ export default function EmployeeSettings() {
 
               <p className="mt-2 max-w-2xl text-sm leading-6 text-[#777e89]">
                 Notifications aur account security
-                preferences manage karo.
+                manage your preferences.
               </p>
             </div>
 
@@ -362,7 +362,7 @@ export default function EmployeeSettings() {
                   </h2>
 
                   <p className="mt-1 text-[10px] text-[#9299a4]">
-                    Login password update karo.
+                    Update your login password.
                   </p>
                 </div>
               </div>

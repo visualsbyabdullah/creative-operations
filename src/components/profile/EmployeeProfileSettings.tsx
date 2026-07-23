@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 
@@ -230,7 +230,7 @@ export default function EmployeeProfileSettings() {
       !passwordForm.confirmPassword
     ) {
       setSaveMessage(
-        "Password ke tamam fields complete karo.",
+        "Complete all password fields.",
       );
 
       return;
@@ -241,7 +241,7 @@ export default function EmployeeProfileSettings() {
       passwordForm.confirmPassword
     ) {
       setSaveMessage(
-        "New password aur confirmation match nahi kar rahe.",
+        "The new password and confirmation do not match.",
       );
 
       return;
@@ -563,7 +563,7 @@ export default function EmployeeProfileSettings() {
                   <SettingsRow
                     icon={BriefcaseBusiness}
                     title="New task assignments"
-                    description="Jab naya design ya video task assign ho."
+                    description="When a new design or video task is assigned."
                     checked={
                       notificationSettings.newTaskAssignments
                     }
@@ -715,8 +715,7 @@ export default function EmployeeProfileSettings() {
                     </h2>
 
                     <p className="mt-1 text-[10px] text-[#9299a4]">
-                      Apna account password update
-                      karo
+                      Update your account password
                     </p>
                   </div>
                 </div>

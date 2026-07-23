@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -729,7 +729,7 @@ export default function BrandsManagement() {
               <p className="mt-2 max-w-2xl text-sm leading-6 text-[#777e89]">
                 Brand assignments, weekly posting
                 schedules, platforms aur creative
-                teams manage karo.
+                manage your teams.
               </p>
             </div>
 
@@ -1067,8 +1067,8 @@ export default function BrandsManagement() {
                 </p>
 
                 <p className="mt-1 text-xs text-[#9299a4]">
-                  Search ya filters change karke
-                  dobara check karo.
+                  Adjust the search or filters and
+                  try again.
                 </p>
               </div>
             </section>
@@ -1453,7 +1453,7 @@ export default function BrandsManagement() {
                 </h2>
 
                 <p className="mt-1 text-xs text-[#8b929d]">
-                  Brand profile create karo. Team
+                  Create a brand profile. Team
                   aur schedule baad mein assign kiya
                   ja sakta hai.
                 </p>

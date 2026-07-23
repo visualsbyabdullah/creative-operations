@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -521,8 +521,7 @@ export default function WeeklyPlanner() {
               </h1>
 
               <p className="mt-2 max-w-2xl text-sm leading-6 text-[#777e89]">
-                Monday se Friday tak graphics, reels, platforms aur team
-                assignments manage karo.
+                Manage graphics, reels, platforms and team assignments from Monday to Friday.
               </p>
             </div>
 
@@ -569,7 +568,7 @@ export default function WeeklyPlanner() {
                     {taskStats.total}
                   </p>
                   <p className="mt-3 text-xs text-white/70">
-                    Monday se Friday scheduled
+                    Scheduled from Monday to Friday
                   </p>
                 </div>
 
@@ -895,7 +894,7 @@ export default function WeeklyPlanner() {
               <div>
                 <h2 className="text-xl font-bold">Add New Task</h2>
                 <p className="mt-1 text-xs text-[#8b929d]">
-                  Graphic ya video task weekly schedule mein add karo.
+                  Add a graphic or video task to the weekly schedule.
                 </p>
               </div>
 
@@ -1127,7 +1126,7 @@ export default function WeeklyPlanner() {
                 </h2>
 
                 <p className="mt-2 text-sm leading-6 text-[#7d8490]">
-                  Task delayed mark karne ke liye reason dena mandatory
+                  A reason is required when marking a task as delayed
                   hai.
                 </p>
               </div>
@@ -1150,7 +1149,7 @@ export default function WeeklyPlanner() {
                 setDelayReason(event.target.value)
               }
               rows={5}
-              placeholder="Example: Client assets pending thay, is wajah se task complete nahi ho saka."
+              placeholder="Example: Client assets were pending, so the task could not be completed."
               className="mt-5 w-full resize-none rounded-2xl border border-[#e5e9ef] p-4 text-sm leading-6 outline-none focus:border-[#2f80ed]"
             />
 

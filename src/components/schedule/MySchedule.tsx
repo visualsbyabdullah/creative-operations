@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useMemo, useState } from "react";
 
@@ -266,7 +266,7 @@ const scheduleTasks: ScheduleTask[] = [
     deadline: "3:30 PM",
     status: "Delayed",
     delayReason:
-      "Updated product screen recording abhi receive nahi hui.",
+      "The updated product screen recording has not been received yet.",
   },
 ];
 
@@ -411,9 +411,7 @@ export default function MySchedule() {
               </h1>
 
               <p className="mt-2 max-w-2xl text-sm leading-6 text-[#777e89]">
-                Monday se Friday tak apna assigned
-                content schedule, deadlines aur
-                task status dekho.
+                View your assigned content schedule, deadlines and task status from Monday to Friday.
               </p>
             </div>
 

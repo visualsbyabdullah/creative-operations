@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import {
   useEffect,
@@ -880,7 +880,7 @@ export default function CreativeDashboard() {
                 </h2>
 
                 <p className="mt-2 text-xs leading-5 text-[#858c97]">
-                  Apna next pending task select karo.
+                  Select the next pending task you want to start.
                 </p>
               </div>
 

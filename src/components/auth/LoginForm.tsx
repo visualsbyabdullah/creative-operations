@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import {
   useState,
@@ -117,8 +117,7 @@ export default function LoginForm() {
           </h1>
 
           <p className="mt-2 text-sm leading-6 text-[#777e89]">
-            Apni company email aur password
-            enter karo.
+            Enter your company email and password.
           </p>
         </div>
 
