@@ -46,3 +46,15 @@ next-env.d.ts
 *.before-*
 *.broken-*
 fix-dashboard-popup.ps1
+
+# Local generated backup and maintenance files
+*.bak
+*.backup
+*.before-*
+*.broken-*.bak
+/dashboard-*.txt
+/kpi-card-*.txt
+/*-inspection.txt
+/*-locations.txt
+/fix-*.ps1
+/*-fix.ps1
