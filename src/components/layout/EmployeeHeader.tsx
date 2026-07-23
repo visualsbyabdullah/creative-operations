@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   useEffect,
   useRef,
@@ -18,21 +18,66 @@ import {
   X,
 } from "lucide-react";
 
-import {
-  defaultEmployee,
-  type EmployeeProfile,
-} from "@/config/employee";
+import { defaultEmployee } from "@/config/employee";
+import { createClient } from "@/lib/supabase/client";
 
 import { employeeNavigation } from "@/config/employeeNavigation";
 
-type EmployeeHeaderProps = {
-  employee?: EmployeeProfile;
+type HeaderEmployee = {
+  initials: string;
+  name: string;
+  role: string;
 };
+
+type EmployeeHeaderProps = {
+  employee?: HeaderEmployee;
+};
+
+const roleLabels: Record<string, string> = {
+  graphic_designer: "Graphic Designer",
+  video_editor: "Video Editor",
+  hr: "HR",
+  manager: "Manager",
+};
+
+function createInitials(name: string) {
+  const words = name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (words.length === 0) {
+    return "EP";
+  }
+
+  if (words.length === 1) {
+    return words[0]
+      .slice(0, 2)
+      .toUpperCase();
+  }
+
+  return `${words[0][0]}${
+    words[words.length - 1][0]
+  }`.toUpperCase();
+}
 
 export default function EmployeeHeader({
   employee = defaultEmployee,
 }: EmployeeHeaderProps) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const [
+    currentEmployee,
+    setCurrentEmployee,
+  ] = useState<HeaderEmployee>(
+    employee,
+  );
+
+  const [
+    isSigningOut,
+    setIsSigningOut,
+  ] = useState(false);
 
   const profileMenuRef =
     useRef<HTMLDivElement | null>(null);
@@ -55,6 +100,120 @@ export default function EmployeeHeader({
     }
 
     return pathname.startsWith(href);
+  }
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadCurrentProfile() {
+      const supabase = createClient();
+
+      const {
+        data: userData,
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      const user = userData.user;
+
+      if (
+        userError ||
+        !user ||
+        !isMounted
+      ) {
+        return;
+      }
+
+      const {
+        data: profile,
+        error: profileError,
+      } = await supabase
+        .from("profiles")
+        .select("full_name, role")
+        .eq("id", user.id)
+        .single();
+
+      if (
+        profileError ||
+        !profile ||
+        !isMounted
+      ) {
+        return;
+      }
+
+      const profileName =
+        typeof profile.full_name ===
+        "string"
+          ? profile.full_name.trim()
+          : "";
+
+      const metadataName =
+        typeof user.user_metadata
+          ?.full_name === "string"
+          ? user.user_metadata.full_name.trim()
+          : "";
+
+      const emailName =
+        user.email
+          ?.split("@")[0]
+          ?.trim() ?? "";
+
+      const name =
+        profileName ||
+        metadataName ||
+        emailName ||
+        "Employee";
+
+      const databaseRole =
+        typeof profile.role === "string"
+          ? profile.role
+          : "";
+
+      setCurrentEmployee({
+        name,
+        initials: createInitials(name),
+        role:
+          roleLabels[databaseRole] ??
+          "Employee",
+      });
+    }
+
+    void loadCurrentProfile();
+
+  return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  async function handleSignOut() {
+    if (isSigningOut) {
+      return;
+    }
+
+    setIsSigningOut(true);
+
+    const supabase = createClient();
+
+    const {
+      error,
+    } = await supabase.auth.signOut({
+      scope: "local",
+    });
+
+    if (error) {
+      console.error(
+        "Unable to sign out:",
+        error.message,
+      );
+
+      setIsSigningOut(false);
+      return;
+    }
+
+    setIsProfileMenuOpen(false);
+    setIsMobileNavigationOpen(false);
+
+    router.replace("/login");
+    router.refresh();
   }
 
   useEffect(() => {
@@ -92,7 +251,7 @@ export default function EmployeeHeader({
             href="/"
             className="flex shrink-0 items-center gap-3"
           >
-            <div className="grid size-10 place-items-center rounded-full bg-gradient-to-br from-[#67adff] to-[#2f80ed] text-white shadow-lg shadow-blue-200">
+            <div className="grid size-10 place-items-center rounded-full bg-brand-blue-gradient text-white shadow-lg shadow-blue-200">
               <Palette size={20} />
             </div>
 
@@ -181,16 +340,16 @@ export default function EmployeeHeader({
                 className="flex items-center gap-3 rounded-full"
               >
                 <div className="grid size-10 place-items-center rounded-full bg-[#1d2430] text-sm font-bold text-white">
-                  {employee.initials}
+                  {currentEmployee.initials}
                 </div>
 
                 <div className="hidden text-left xl:block">
                   <p className="text-sm font-bold">
-                    {employee.name}
+                    {currentEmployee.name}
                   </p>
 
                   <p className="text-[11px] text-[#9299a4]">
-                    {employee.role}
+                    {currentEmployee.role}
                   </p>
                 </div>
 
@@ -211,11 +370,11 @@ export default function EmployeeHeader({
                 >
                   <div className="border-b border-[#edf0f5] px-3 py-3">
                     <p className="text-xs font-bold">
-                      {employee.name}
+                      {currentEmployee.name}
                     </p>
 
                     <p className="mt-1 text-[10px] text-[#9299a4]">
-                      {employee.role}
+                      {currentEmployee.role}
                     </p>
                   </div>
 
@@ -233,10 +392,12 @@ export default function EmployeeHeader({
                     <button
                       type="button"
                       role="menuitem"
+                      onClick={handleSignOut}
+                      disabled={isSigningOut}
                       className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-xs font-semibold text-red-600 transition hover:bg-red-50"
                     >
                       <LogOut size={15} />
-                      Sign Out
+                      {isSigningOut ? "Signing Out..." : "Sign Out"}
                     </button>
                   </div>
                 </div>
@@ -260,7 +421,7 @@ export default function EmployeeHeader({
           <aside className="fixed inset-y-0 right-0 z-50 w-[88%] max-w-sm bg-white p-5 shadow-[-25px_0_70px_rgba(15,23,42,0.18)] lg:hidden">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="grid size-10 place-items-center rounded-full bg-gradient-to-br from-[#67adff] to-[#2f80ed] text-white">
+                <div className="grid size-10 place-items-center rounded-full bg-brand-blue-gradient text-white">
                   <Palette size={20} />
                 </div>
 
@@ -343,6 +504,18 @@ export default function EmployeeHeader({
                 <UserRound size={17} />
                 Profile & Settings
               </Link>
+
+              <button
+                type="button"
+                onClick={handleSignOut}
+                disabled={isSigningOut}
+                className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <LogOut size={17} />
+                {isSigningOut
+                  ? "Signing Out..."
+                  : "Sign Out"}
+              </button>
             </nav>
           </aside>
         </>

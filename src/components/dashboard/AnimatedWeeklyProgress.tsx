@@ -36,8 +36,8 @@ export default function AnimatedWeeklyProgress({
   useEffect(() => {
     let animationFrame = 0;
 
-    const duration = 1200;
-    const delay = 250;
+    const duration = 1250;
+    const delay = 180;
     const startTime =
       performance.now() + delay;
 

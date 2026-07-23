@@ -70,3 +70,50 @@ button {
   background: transparent;
 }
 
+
+/* Shared KPI card interaction */
+.kpi-card-hover {
+  transform: translateY(0);
+  transition:
+    transform 300ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+.kpi-card-hover:hover {
+  transform: translateY(-4px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kpi-card-hover {
+    transition: none;
+  }
+
+  .kpi-card-hover:hover {
+    transform: none;
+  }
+}
+
+
+/* Centralised brand blue gradient */
+:root {
+  --brand-blue-gradient-start: #176fe8;
+  --brand-blue-gradient-end: #6baaff;
+  --brand-blue-gradient: linear-gradient(
+    135deg,
+    var(--brand-blue-gradient-start),
+    var(--brand-blue-gradient-end)
+  );
+}
+
+.bg-brand-blue-gradient {
+  background-image: var(--brand-blue-gradient);
+}
+
+/* Shared spacing between page heading and first content section */
+:root {
+  --page-section-gap: 1.25rem;
+}
+
+.page-section-gap {
+  margin-top: var(--page-section-gap);
+}

@@ -92,7 +92,7 @@ export default function LoginForm() {
     <main className="grid min-h-screen place-items-center bg-[#e7ebf2] p-4">
       <section className="w-full max-w-md rounded-[28px] border border-white/80 bg-white p-6 shadow-[0_30px_90px_rgba(24,39,75,0.14)] sm:p-8">
         <div className="flex items-center gap-3">
-          <div className="grid size-12 place-items-center rounded-full bg-gradient-to-br from-[#67adff] to-[#2f80ed] text-white shadow-lg shadow-blue-200">
+          <div className="grid size-12 place-items-center rounded-full bg-brand-blue-gradient text-white shadow-lg shadow-blue-200">
             <Palette size={22} />
           </div>
 

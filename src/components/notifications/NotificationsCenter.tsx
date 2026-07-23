@@ -555,8 +555,8 @@ export default function NotificationsCenter() {
             </div>
           </section>
 
-          <section className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <article className="rounded-[22px] bg-gradient-to-br from-[#176fe8] to-[#6baaff] p-5 text-white shadow-[0_18px_40px_rgba(47,128,237,0.20)]">
+          <section className="page-section-gap grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <article className="kpi-card-hover rounded-[22px] bg-brand-blue-gradient p-5 text-white shadow-[0_18px_40px_rgba(47,128,237,0.20)]">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm text-white/75">
@@ -578,7 +578,7 @@ export default function NotificationsCenter() {
               </div>
             </article>
 
-            <article className="rounded-[22px] border border-[#edf0f5] bg-white p-5">
+            <article className="kpi-card-hover rounded-[22px] border border-[#edf0f5] bg-white p-5">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm text-[#7d8490]">
@@ -600,7 +600,7 @@ export default function NotificationsCenter() {
               </div>
             </article>
 
-            <article className="rounded-[22px] border border-[#edf0f5] bg-white p-5">
+            <article className="kpi-card-hover rounded-[22px] border border-[#edf0f5] bg-white p-5">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm text-[#7d8490]">
@@ -624,7 +624,7 @@ export default function NotificationsCenter() {
               </div>
             </article>
 
-            <article className="rounded-[22px] border border-[#edf0f5] bg-white p-5">
+            <article className="kpi-card-hover rounded-[22px] border border-[#edf0f5] bg-white p-5">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm text-[#7d8490]">

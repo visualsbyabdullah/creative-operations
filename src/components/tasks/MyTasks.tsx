@@ -311,7 +311,7 @@ function ProgressMeter({
 
       <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-[#edf1f6]">
         <div
-          className="h-full rounded-full bg-gradient-to-r from-[#176fe8] to-[#6aa9ff] transition-all duration-500"
+          className="h-full rounded-full bg-brand-blue-gradient transition-all duration-500"
           style={{
             width: `${percentage}%`,
           }}
@@ -538,8 +538,8 @@ export default function MyTasks() {
             </div>
           </section>
 
-          <section className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <article className="rounded-[22px] bg-gradient-to-br from-[#176fe8] to-[#6baaff] p-5 text-white shadow-[0_18px_40px_rgba(47,128,237,0.20)]">
+          <section className="page-section-gap grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <article className="kpi-card-hover rounded-[22px] bg-brand-blue-gradient p-5 text-white shadow-[0_18px_40px_rgba(47,128,237,0.20)]">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm text-white/75">
@@ -561,7 +561,7 @@ export default function MyTasks() {
               </div>
             </article>
 
-            <article className="rounded-[22px] border border-[#edf0f5] bg-white p-5">
+            <article className="kpi-card-hover rounded-[22px] border border-[#edf0f5] bg-white p-5">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm text-[#7d8490]">
@@ -583,7 +583,7 @@ export default function MyTasks() {
               </div>
             </article>
 
-            <article className="rounded-[22px] border border-[#edf0f5] bg-white p-5">
+            <article className="kpi-card-hover rounded-[22px] border border-[#edf0f5] bg-white p-5">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm text-[#7d8490]">
@@ -605,7 +605,7 @@ export default function MyTasks() {
               </div>
             </article>
 
-            <article className="rounded-[22px] border border-[#edf0f5] bg-white p-5">
+            <article className="kpi-card-hover rounded-[22px] border border-[#edf0f5] bg-white p-5">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm text-[#7d8490]">
@@ -1015,21 +1015,21 @@ export default function MyTasks() {
                   Update Status
                 </label>
 
-                <select
+                <PillSelect<TaskStatus>
                   value={selectedTask.status}
-                  onChange={(event) =>
-                    handleStatusChange(
-                      event.target.value as TaskStatus,
-                    )
+                  options={statuses.map(
+                    (status) => ({
+                      label: status,
+                      value: status,
+                    }),
+                  )}
+                  onValueChange={
+                    handleStatusChange
                   }
-                  className="mt-2 w-full rounded-2xl border border-[#e2e7ed] bg-white px-4 py-3 text-sm font-semibold outline-none focus:border-[#2f80ed]"
-                >
-                  {statuses.map((status) => (
-                    <option key={status} value={status}>
-                      {status}
-                    </option>
-                  ))}
-                </select>
+                  ariaLabel="Update task status"
+                  variant="field"
+                  fullWidth
+                />
               </section>
 
               {showDelayForm ? (

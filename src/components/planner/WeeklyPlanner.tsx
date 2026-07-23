@@ -435,7 +435,7 @@ export default function WeeklyPlanner() {
         <header className="px-4 pt-4 sm:px-6 sm:pt-6">
           <div className="flex min-h-20 items-center justify-between gap-4 rounded-[22px] border border-[#f0f2f6] bg-white px-4 shadow-[0_12px_34px_rgba(24,39,75,0.04)] sm:px-6">
             <Link href="/" className="flex items-center gap-3">
-              <div className="grid size-10 place-items-center rounded-full bg-gradient-to-br from-[#67adff] to-[#2f80ed] text-white shadow-lg shadow-blue-200">
+              <div className="grid size-10 place-items-center rounded-full bg-brand-blue-gradient text-white shadow-lg shadow-blue-200">
                 <Palette size={20} />
               </div>
 
@@ -560,8 +560,8 @@ export default function WeeklyPlanner() {
             </div>
           </section>
 
-          <section className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <article className="rounded-[22px] bg-gradient-to-br from-[#176fe8] to-[#6baaff] p-5 text-white shadow-[0_18px_40px_rgba(47,128,237,0.20)]">
+          <section className="page-section-gap grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <article className="kpi-card-hover rounded-[22px] bg-brand-blue-gradient p-5 text-white shadow-[0_18px_40px_rgba(47,128,237,0.20)]">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm text-white/75">Weekly Tasks</p>
@@ -579,7 +579,7 @@ export default function WeeklyPlanner() {
               </div>
             </article>
 
-            <article className="rounded-[22px] border border-[#edf0f5] bg-white p-5">
+            <article className="kpi-card-hover rounded-[22px] border border-[#edf0f5] bg-white p-5">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm text-[#7d8490]">Completed</p>
@@ -597,7 +597,7 @@ export default function WeeklyPlanner() {
               </div>
             </article>
 
-            <article className="rounded-[22px] border border-[#edf0f5] bg-white p-5">
+            <article className="kpi-card-hover rounded-[22px] border border-[#edf0f5] bg-white p-5">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm text-[#7d8490]">In Progress</p>
@@ -615,7 +615,7 @@ export default function WeeklyPlanner() {
               </div>
             </article>
 
-            <article className="rounded-[22px] border border-[#edf0f5] bg-white p-5">
+            <article className="kpi-card-hover rounded-[22px] border border-[#edf0f5] bg-white p-5">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm text-[#7d8490]">Delayed</p>

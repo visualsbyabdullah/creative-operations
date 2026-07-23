@@ -1,25 +1,22 @@
 ﻿"use client";
 
-import {
-  useEffect,
-  useState,
-} from "react";
 
 type WeeklyProgressMeterProps = {
   percentage: number;
   completed: number;
   total: number;
+  progress: number;
 };
 
 export default function WeeklyProgressMeter({
   percentage,
   completed,
   total,
+  progress,
 }: WeeklyProgressMeterProps) {
-  const [
-    animatedPercentage,
-    setAnimatedPercentage,
-  ] = useState(0);
+  const animatedPercentage = Math.round(
+    percentage * progress,
+  );
 
   const segmentCount = 18;
 
@@ -27,61 +24,6 @@ export default function WeeklyProgressMeter({
     (animatedPercentage / 100) *
       segmentCount,
   );
-
-  useEffect(() => {
-    let animationFrame = 0;
-    let startTime: number | null = null;
-
-    const delay = 180;
-    const duration = 1250;
-
-    setAnimatedPercentage(0);
-
-    function animate(timestamp: number) {
-      if (startTime === null) {
-        startTime = timestamp + delay;
-      }
-
-      if (timestamp < startTime) {
-        animationFrame =
-          requestAnimationFrame(animate);
-
-        return;
-      }
-
-      const elapsed =
-        timestamp - startTime;
-
-      const progress = Math.min(
-        elapsed / duration,
-        1,
-      );
-
-      const easedProgress =
-        1 -
-        Math.pow(1 - progress, 3);
-
-      setAnimatedPercentage(
-        Math.round(
-          percentage * easedProgress,
-        ),
-      );
-
-      if (progress < 1) {
-        animationFrame =
-          requestAnimationFrame(animate);
-      }
-    }
-
-    animationFrame =
-      requestAnimationFrame(animate);
-
-    return () => {
-      cancelAnimationFrame(
-        animationFrame,
-      );
-    };
-  }, [percentage]);
 
   const centerX = 180;
   const centerY = 165;
