@@ -72,7 +72,7 @@ export default function AnimatedWeeklyProgress({
       }
     }
 
-    setAnimatedPercentage(0);
+    requestAnimationFrame(() => setAnimatedPercentage(0));
 
     animationFrame =
       requestAnimationFrame(animate);

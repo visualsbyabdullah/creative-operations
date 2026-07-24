@@ -218,7 +218,7 @@ export default function EmployeeSettings() {
 
           <section className="mt-7 grid gap-5 xl:grid-cols-2">
             <article className="rounded-[24px] border border-[#edf0f5] bg-white p-5 sm:p-6">
-              
+
 
               <div>
                 <PreferenceRow

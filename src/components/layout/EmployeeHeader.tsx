@@ -326,7 +326,7 @@ export default function EmployeeHeader({
   <span className="absolute right-2 top-2 size-2 rounded-full bg-red-500 ring-2 ring-white" />
 </Link>
 
-            
+
 
             <div
               ref={profileMenuRef}

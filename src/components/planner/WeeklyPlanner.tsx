@@ -2,11 +2,8 @@
 
 import EmployeeHeader from "@/components/layout/EmployeeHeader";
 import PillSelect from "@/components/ui/PillSelect";
-
-import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
-  Bell,
   CalendarDays,
   Check,
   ChevronLeft,
@@ -16,16 +13,11 @@ import {
   ExternalLink,
   FileImage,
   Film,
-  Filter,
-  LayoutDashboard,
   ListChecks,
   MoreHorizontal,
   Pencil,
-  Palette,
   Plus,
   Search,
-  Settings,
-  Sparkles,
   Trash2,
   Users,
   X,
@@ -340,26 +332,6 @@ export default function WeeklyPlanner() {
       delayed,
     };
   }, [filteredTasks]);
-
-  function updateTaskStatus(taskId: number, status: TaskStatus) {
-    if (status === "Delayed") {
-      setDelayTaskId(taskId);
-      setDelayReason("");
-      return;
-    }
-
-    setTasks((currentTasks) =>
-      currentTasks.map((task) =>
-        task.id === taskId
-          ? {
-              ...task,
-              status,
-              delayReason: undefined,
-            }
-          : task,
-      ),
-    );
-  }
 
   function saveDelayReason() {
     if (!delayTaskId || !delayReason.trim()) {

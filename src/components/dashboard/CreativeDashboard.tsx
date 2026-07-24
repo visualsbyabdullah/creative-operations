@@ -5,31 +5,21 @@ import {
   useState } from "react";
 
 import EmployeeHeader from "@/components/layout/EmployeeHeader";
-import Link from "next/link";
-import { employeeNavigation } from "@/config/employeeNavigation";
-
 import type { ComponentType } from "react";
 import type { EmployeeProfile } from "@/types/auth";
 import WeeklyProgressMeter from "@/components/dashboard/WeeklyProgressMeter";
 
 
 import {
-  Bell,
-  Send,
-  ListChecks,
   CalendarDays,
   Check,
   ChevronDown,
   CircleAlert,
   Clock3,
-  ExternalLink,
   FileImage,
-  LayoutDashboard,
   MoreHorizontal,
-  Palette,
   Play,
   Search,
-  Sparkles,
   Users,
   Eye,
   X,
@@ -287,8 +277,8 @@ const dashboardTaskDetailsByTitle: Record<
   }
 > = {
   "AI Campaign Carousel": {
-    assignedAt: "Monday, 20 July 2026 Â· 9:15 AM",
-    deadline: "Wednesday, 22 July 2026 Â· 11:30 AM",
+    assignedAt: "Monday, 20 July 2026 Ãƒâ€šÃ‚Â· 9:15 AM",
+    deadline: "Wednesday, 22 July 2026 Ãƒâ€šÃ‚Â· 11:30 AM",
     platforms: [
       "Instagram",
       "Facebook",
@@ -301,8 +291,8 @@ const dashboardTaskDetailsByTitle: Record<
   },
 
   "Payroll Automation Post": {
-    assignedAt: "Monday, 20 July 2026 Â· 10:00 AM",
-    deadline: "Wednesday, 22 July 2026 Â· 2:00 PM",
+    assignedAt: "Monday, 20 July 2026 Ãƒâ€šÃ‚Â· 10:00 AM",
+    deadline: "Wednesday, 22 July 2026 Ãƒâ€šÃ‚Â· 2:00 PM",
     platforms: [
       "LinkedIn",
     ],
@@ -314,9 +304,9 @@ const dashboardTaskDetailsByTitle: Record<
   },
 
   "Solar Energy Banner": {
-    assignedAt: "Tuesday, 21 July 2026 Â· 9:30 AM",
-    deadline: "Wednesday, 22 July 2026 Â· 4:30 PM",
-    deliveredAt: "Wednesday, 22 July 2026 Â· 3:55 PM",
+    assignedAt: "Tuesday, 21 July 2026 Ãƒâ€šÃ‚Â· 9:30 AM",
+    deadline: "Wednesday, 22 July 2026 Ãƒâ€šÃ‚Â· 4:30 PM",
+    deliveredAt: "Wednesday, 22 July 2026 Ãƒâ€šÃ‚Â· 3:55 PM",
     platforms: [
       "Facebook",
       "Instagram",
@@ -329,8 +319,8 @@ const dashboardTaskDetailsByTitle: Record<
   },
 
   "Esports Match Graphic": {
-    assignedAt: "Monday, 20 July 2026 Â· 11:20 AM",
-    deadline: "Tuesday, 21 July 2026 Â· 6:00 PM",
+    assignedAt: "Monday, 20 July 2026 Ãƒâ€šÃ‚Â· 11:20 AM",
+    deadline: "Tuesday, 21 July 2026 Ãƒâ€šÃ‚Â· 6:00 PM",
     platforms: [
       "Instagram",
       "Facebook",
@@ -343,9 +333,9 @@ const dashboardTaskDetailsByTitle: Record<
   },
 
   "POS Feature Post": {
-    assignedAt: "Wednesday, 22 July 2026 Â· 9:00 AM",
-    deadline: "Friday, 24 July 2026 Â· 12:00 PM",
-    deliveredAt: "Friday, 24 July 2026 Â· 11:25 AM",
+    assignedAt: "Wednesday, 22 July 2026 Ãƒâ€šÃ‚Â· 9:00 AM",
+    deadline: "Friday, 24 July 2026 Ãƒâ€šÃ‚Â· 12:00 PM",
+    deliveredAt: "Friday, 24 July 2026 Ãƒâ€šÃ‚Â· 11:25 AM",
     platforms: [
       "LinkedIn",
       "Facebook",
@@ -506,7 +496,7 @@ export default function CreativeDashboard({
       }
     }
 
-    setAnimationProgress(0);
+    requestAnimationFrame(() => setAnimationProgress(0));
 
     frameId = requestAnimationFrame(
       animateDashboard,
@@ -631,7 +621,7 @@ export default function CreativeDashboard({
             <MetricCard
               title="Tasks Today"
               value="6"
-              caption="2 completed Â· 4 remaining"
+              caption="2 completed Ãƒâ€šÃ‚Â· 4 remaining"
               icon={CalendarDays}
               featured
             />
@@ -731,7 +721,7 @@ export default function CreativeDashboard({
                       dataKey="remaining"
                       stackId="tasks"
                       radius={[0, 0, 10, 10]}
-                    
+
   isAnimationActive={false}
 >
                       {performanceData.map((entry) => (
@@ -743,7 +733,7 @@ export default function CreativeDashboard({
                       dataKey="completed"
                       stackId="tasks"
                       radius={[10, 10, 0, 0]}
-                    
+
   isAnimationActive={false}
 >
                       {performanceData.map((entry) => (
@@ -968,7 +958,7 @@ export default function CreativeDashboard({
           </section>
         </div>
       </section>
-    
+
       {isStartTaskOpen ? (
         <>
           <button
@@ -1052,7 +1042,7 @@ export default function CreativeDashboard({
                       </div>
 
                       <p className="mt-1 text-xs text-[#858c97]">
-                        {task.brand} Â· {task.platform}
+                        {task.brand} Ãƒâ€šÃ‚Â· {task.platform}
                       </p>
 
                       <p className="mt-1 text-[10px] font-semibold text-[#a0a6b0]">

@@ -1,30 +1,22 @@
 "use client";
 
 import EmployeeHeader from "@/components/layout/EmployeeHeader";
-import Link from "next/link";
 import PillSelect from "@/components/ui/PillSelect";
 import { useEmployee } from "@/context/EmployeeContext";
-import { employeeNavigation } from "@/config/employeeNavigation";
 import { useEffect, useMemo, useState } from "react";
 import {
-  Bell,
   CalendarDays,
   Check,
-  ChevronDown,
   CircleAlert,
   Clock3,
   ExternalLink,
   FileImage,
   Film,
-  LayoutDashboard,
   Link2,
   ListChecks,
-  Palette,
   Search,
   Send,
-  Sparkles,
   Upload,
-  Users,
   X,
 } from "lucide-react";
 
@@ -78,9 +70,6 @@ type CreativeTask = {
 type StatusFilter = "All Statuses" | TaskStatus;
 
 type DayFilter = "All Days" | WeekDay;
-
-const navigation = employeeNavigation;
-
 const statusStyles: Record<TaskStatus, string> = {
   "Not Started": "bg-slate-100 text-slate-700",
   "In Progress": "bg-blue-50 text-blue-700",
@@ -415,16 +404,7 @@ export default function MyTasks() {
 
   const [tasks, setTasks] =
     useState<CreativeTask[]>(departmentTasks);
-
-  useEffect(() => {
-    setTasks(departmentTasks);
-    setSelectedTaskId(null);
-    setSearchQuery("");
-    setStatusFilter("All Statuses");
-    setDayFilter("All Days");
-  }, [departmentTasks]);
-
-  const [selectedTaskId, setSelectedTaskId] =
+const [selectedTaskId, setSelectedTaskId] =
     useState<number | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -443,6 +423,17 @@ export default function MyTasks() {
 
   const [showDelayForm, setShowDelayForm] = useState(false);
 
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      setTasks(departmentTasks);
+      setSelectedTaskId(null);
+      setSearchQuery("");
+      setStatusFilter("All Statuses");
+      setDayFilter("All Days");
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [departmentTasks]);
   const selectedTask =
     tasks.find((task) => task.id === selectedTaskId) ?? null;
 
@@ -875,7 +866,7 @@ export default function MyTasks() {
                             </p>
 
                             <p className="mt-1 text-[11px] text-[#8f96a1]">
-                              {task.brand} Â·{" "}
+                              {task.brand} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â·{" "}
                               {task.contentType}
                             </p>
                           </div>
@@ -927,9 +918,9 @@ export default function MyTasks() {
                             <ExternalLink size={13} />
                           </button>
 
-                          
+
                         </div>
-                      
+
 </td>
                     </tr>
                   ))}

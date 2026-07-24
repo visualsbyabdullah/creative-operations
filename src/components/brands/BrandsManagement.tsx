@@ -2,34 +2,27 @@
 
 import EmployeeHeader from "@/components/layout/EmployeeHeader";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import PillSelect from "@/components/ui/PillSelect";
 
 import {
-  Bell,
   BriefcaseBusiness,
   Camera,
   CalendarDays,
   Check,
-  ChevronDown,
   CirclePause,
   Clock3,
   ExternalLink,
   FileImage,
   Film,
   Globe2,
-  LayoutDashboard,
-  ListChecks,
   MessageCircle,
   MoreHorizontal,
   Pencil,
-  Palette,
   PlaySquare,
   Plus,
   Search,
-  Settings,
   Sparkles,
   Trash2,
   Users,
@@ -1359,7 +1352,7 @@ export default function BrandsManagement() {
 
                                       <p className="mt-1 text-[9px] text-[#9299a4]">
                                         {item.platforms.join(
-                                          " Â· ",
+                                          " Ã‚Â· ",
                                         )}
                                       </p>
                                     </div>

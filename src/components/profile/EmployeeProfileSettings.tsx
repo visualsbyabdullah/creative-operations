@@ -8,8 +8,6 @@ import {
   Camera,
   Check,
   Clock3,
-  FileImage,
-  Film,
   KeyRound,
   LockKeyhole,
   Mail,
@@ -21,8 +19,6 @@ import {
 } from "lucide-react";
 
 import EmployeeHeader from "@/components/layout/EmployeeHeader";
-import PillSelect from "@/components/ui/PillSelect";
-
 import {
   employeeProfiles,
   type EmployeeDepartment,
@@ -37,20 +33,6 @@ type NotificationSettings = {
   emailNotifications: boolean;
   inAppNotifications: boolean;
 };
-
-const departmentOptions: {
-  label: string;
-  value: EmployeeDepartment;
-}[] = [
-  {
-    label: "Graphic Designer",
-    value: "Graphic Design",
-  },
-  {
-    label: "Video Editor",
-    value: "Video Editing",
-  },
-];
 
 function ToggleSwitch({
   checked,
@@ -124,12 +106,7 @@ function SettingsRow({
 }
 
 export default function EmployeeProfileSettings() {
-  const [
-    selectedDepartment,
-    setSelectedDepartment,
-  ] = useState<EmployeeDepartment>(
-    "Graphic Design",
-  );
+  const selectedDepartment: EmployeeDepartment = "Graphic Design";
 
   const employee =
     employeeProfiles[selectedDepartment];
@@ -144,7 +121,7 @@ export default function EmployeeProfileSettings() {
           : "hamza@creativeops.com",
       phone: "+92 300 1234567",
       location: "Islamabad, Pakistan",
-      workingHours: "9:00 AM â€“ 6:00 PM",
+      workingHours: "9:00 AM ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ 6:00 PM",
       bio:
         selectedDepartment ===
         "Graphic Design"
@@ -174,32 +151,6 @@ export default function EmployeeProfileSettings() {
 
   const [saveMessage, setSaveMessage] =
     useState("");
-
-  function switchDepartment(
-    department: EmployeeDepartment,
-  ) {
-    setSelectedDepartment(department);
-
-    const nextEmployee =
-      employeeProfiles[department];
-
-    setProfileForm({
-      fullName: nextEmployee.name,
-      email:
-        department === "Graphic Design"
-          ? "abdullah@creativeops.com"
-          : "hamza@creativeops.com",
-      phone: "+92 300 1234567",
-      location: "Islamabad, Pakistan",
-      workingHours: "9:00 AM â€“ 6:00 PM",
-      bio:
-        department === "Graphic Design"
-          ? "Graphic designer focused on social media campaigns, brand identities and digital marketing creatives."
-          : "Video editor focused on reels, product explainers, commercial edits and social media content.",
-    });
-
-    setSaveMessage("");
-  }
 
   function updateNotificationSetting(
     key: keyof NotificationSettings,

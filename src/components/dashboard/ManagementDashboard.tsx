@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { CalendarDays, Check, CircleAlert, Clock3, ExternalLink, ListChecks, Plus, Send, Users, X } from "lucide-react";
+import { CircleAlert, Clock3, ExternalLink, ListChecks, Plus, Send, Users, X } from "lucide-react";
 
 import EmployeeHeader from "@/components/layout/EmployeeHeader";
 import WeeklyProgressMeter from "@/components/dashboard/WeeklyProgressMeter";
@@ -64,12 +64,12 @@ export default function ManagementDashboard({ profile }: { profile: EmployeeProf
   // Drawer chart animation
   useEffect(() => {
     if (!selectedEmployee) {
-      setDrawerAnimationProgress(0);
+      requestAnimationFrame(() => setDrawerAnimationProgress(0));
       return;
     }
 
     let frame = 0;
-    setDrawerAnimationProgress(0);
+    requestAnimationFrame(() => setDrawerAnimationProgress(0));
 
     const timer = window.setTimeout(() => {
       const startedAt = performance.now();
@@ -234,7 +234,7 @@ export default function ManagementDashboard({ profile }: { profile: EmployeeProf
           </section>
         </div>
       </section>
-    
+
       {selectedEmployee ? (
         <>
           <button

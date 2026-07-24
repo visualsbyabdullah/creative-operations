@@ -5,7 +5,6 @@ import { useMemo, useState } from "react";
 import {
   CalendarDays,
   Check,
-  CircleAlert,
   Clock3,
   ExternalLink,
   FileImage,
@@ -780,7 +779,7 @@ export default function SubmissionsManagement() {
                               size={13}
                             />
                           </button>
-                        
+
 
   </div>
 </td>
@@ -1047,7 +1046,7 @@ export default function SubmissionsManagement() {
                 </h2>
 
                 <p className="mt-1 text-xs text-[#8b929d]">
-                  Submit the task's final work and source links.
+                  Submit the task&apos;s final work and source links.
                 </p>
               </div>
 
