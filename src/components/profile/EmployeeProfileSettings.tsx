@@ -144,7 +144,7 @@ export default function EmployeeProfileSettings() {
           : "hamza@creativeops.com",
       phone: "+92 300 1234567",
       location: "Islamabad, Pakistan",
-      workingHours: "9:00 AM – 6:00 PM",
+      workingHours: "9:00 AM â€“ 6:00 PM",
       bio:
         selectedDepartment ===
         "Graphic Design"
@@ -191,7 +191,7 @@ export default function EmployeeProfileSettings() {
           : "hamza@creativeops.com",
       phone: "+92 300 1234567",
       location: "Islamabad, Pakistan",
-      workingHours: "9:00 AM – 6:00 PM",
+      workingHours: "9:00 AM â€“ 6:00 PM",
       bio:
         department === "Graphic Design"
           ? "Graphic designer focused on social media campaigns, brand identities and digital marketing creatives."

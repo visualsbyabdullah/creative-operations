@@ -9,7 +9,6 @@ import {
   Bell,
   CalendarDays,
   Check,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   CircleAlert,
@@ -480,7 +479,6 @@ export default function WeeklyPlanner() {
   className="flex items-center gap-2 rounded-full border border-[#e8ebf0] bg-white px-4 py-2.5 text-xs font-bold transition hover:border-[#2f80ed] hover:text-[#2f80ed]"
 >
   {weekLabel}
-  <ChevronDown size={15} />
 </button>
 
               <button

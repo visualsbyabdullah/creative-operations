@@ -287,8 +287,8 @@ const dashboardTaskDetailsByTitle: Record<
   }
 > = {
   "AI Campaign Carousel": {
-    assignedAt: "Monday, 20 July 2026 · 9:15 AM",
-    deadline: "Wednesday, 22 July 2026 · 11:30 AM",
+    assignedAt: "Monday, 20 July 2026 Â· 9:15 AM",
+    deadline: "Wednesday, 22 July 2026 Â· 11:30 AM",
     platforms: [
       "Instagram",
       "Facebook",
@@ -301,8 +301,8 @@ const dashboardTaskDetailsByTitle: Record<
   },
 
   "Payroll Automation Post": {
-    assignedAt: "Monday, 20 July 2026 · 10:00 AM",
-    deadline: "Wednesday, 22 July 2026 · 2:00 PM",
+    assignedAt: "Monday, 20 July 2026 Â· 10:00 AM",
+    deadline: "Wednesday, 22 July 2026 Â· 2:00 PM",
     platforms: [
       "LinkedIn",
     ],
@@ -314,9 +314,9 @@ const dashboardTaskDetailsByTitle: Record<
   },
 
   "Solar Energy Banner": {
-    assignedAt: "Tuesday, 21 July 2026 · 9:30 AM",
-    deadline: "Wednesday, 22 July 2026 · 4:30 PM",
-    deliveredAt: "Wednesday, 22 July 2026 · 3:55 PM",
+    assignedAt: "Tuesday, 21 July 2026 Â· 9:30 AM",
+    deadline: "Wednesday, 22 July 2026 Â· 4:30 PM",
+    deliveredAt: "Wednesday, 22 July 2026 Â· 3:55 PM",
     platforms: [
       "Facebook",
       "Instagram",
@@ -329,8 +329,8 @@ const dashboardTaskDetailsByTitle: Record<
   },
 
   "Esports Match Graphic": {
-    assignedAt: "Monday, 20 July 2026 · 11:20 AM",
-    deadline: "Tuesday, 21 July 2026 · 6:00 PM",
+    assignedAt: "Monday, 20 July 2026 Â· 11:20 AM",
+    deadline: "Tuesday, 21 July 2026 Â· 6:00 PM",
     platforms: [
       "Instagram",
       "Facebook",
@@ -343,9 +343,9 @@ const dashboardTaskDetailsByTitle: Record<
   },
 
   "POS Feature Post": {
-    assignedAt: "Wednesday, 22 July 2026 · 9:00 AM",
-    deadline: "Friday, 24 July 2026 · 12:00 PM",
-    deliveredAt: "Friday, 24 July 2026 · 11:25 AM",
+    assignedAt: "Wednesday, 22 July 2026 Â· 9:00 AM",
+    deadline: "Friday, 24 July 2026 Â· 12:00 PM",
+    deliveredAt: "Friday, 24 July 2026 Â· 11:25 AM",
     platforms: [
       "LinkedIn",
       "Facebook",
@@ -631,7 +631,7 @@ export default function CreativeDashboard({
             <MetricCard
               title="Tasks Today"
               value="6"
-              caption="2 completed · 4 remaining"
+              caption="2 completed Â· 4 remaining"
               icon={CalendarDays}
               featured
             />
@@ -866,7 +866,7 @@ export default function CreativeDashboard({
             </div>
 
             <div className="dashboard-scrollbar overflow-x-auto">
-              <table className="w-full min-w-[920px] border-collapse text-left">
+              <table className="app-table w-full min-w-[920px] border-collapse text-left">
                 <thead>
                   <tr className="bg-[#fafbfc] text-[11px] uppercase tracking-[0.08em] text-[#949ba6]">
                     <th className="px-6 py-4 font-semibold">
@@ -1052,7 +1052,7 @@ export default function CreativeDashboard({
                       </div>
 
                       <p className="mt-1 text-xs text-[#858c97]">
-                        {task.brand} · {task.platform}
+                        {task.brand} Â· {task.platform}
                       </p>
 
                       <p className="mt-1 text-[10px] font-semibold text-[#a0a6b0]">

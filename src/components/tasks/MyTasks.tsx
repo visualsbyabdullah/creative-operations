@@ -823,7 +823,7 @@ export default function MyTasks() {
             </div>
 
             <div className="dashboard-scrollbar overflow-x-auto">
-              <table className="w-full min-w-[1080px] border-collapse text-left">
+              <table className="app-table w-full min-w-[1080px] border-collapse text-left">
                 <thead>
                   <tr className="bg-[#fafbfc] text-[11px] uppercase tracking-[0.08em] text-[#949ba6]">
                     <th className="px-6 py-4 font-semibold uppercase tracking-[0.08em]">
@@ -875,7 +875,7 @@ export default function MyTasks() {
                             </p>
 
                             <p className="mt-1 text-[11px] text-[#8f96a1]">
-                              {task.brand} ·{" "}
+                              {task.brand} Â·{" "}
                               {task.contentType}
                             </p>
                           </div>

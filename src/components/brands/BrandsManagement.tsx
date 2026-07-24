@@ -1359,7 +1359,7 @@ export default function BrandsManagement() {
 
                                       <p className="mt-1 text-[9px] text-[#9299a4]">
                                         {item.platforms.join(
-                                          " · ",
+                                          " Â· ",
                                         )}
                                       </p>
                                     </div>

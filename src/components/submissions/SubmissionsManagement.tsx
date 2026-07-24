@@ -662,7 +662,7 @@ export default function SubmissionsManagement() {
 
           <section className="mt-5 overflow-hidden rounded-[24px] border border-[#edf0f5] bg-white">
             <div className="dashboard-scrollbar overflow-x-auto">
-              <table className="min-w-[1050px] w-full border-collapse">
+              <table className="app-table min-w-[1050px] w-full border-collapse">
                 <thead>
                   <tr className="border-b border-[#edf0f5] bg-[#f8fafc] text-left">
                     <th className="px-5 py-4 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#9198a3] text-[11px]">

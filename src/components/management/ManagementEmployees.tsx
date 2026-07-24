@@ -136,7 +136,7 @@ export default function ManagementEmployees() {
         </div>
 
         <div className="dashboard-scrollbar overflow-x-auto">
-          <table className="w-full min-w-[860px] text-left">
+          <table className="app-table w-full min-w-[860px] text-left">
             <thead className="bg-[#fafbfc] text-[10px] uppercase tracking-[0.08em] text-[#949ba6]">
               <tr>
                 <th className="px-6 py-4">Employee</th>
