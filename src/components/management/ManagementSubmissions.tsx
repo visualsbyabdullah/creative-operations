@@ -1,5 +1,7 @@
 "use client";
 
+import SystemTable from "@/components/ui/SystemTable";
+
 import { Check, Clock3, ExternalLink, RotateCcw, Send, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import ManagementShell from "./ManagementShell";
@@ -95,16 +97,9 @@ export default function ManagementSubmissions() {
         </div>
 
         <div className="dashboard-scrollbar overflow-x-auto">
-          <table className="w-full min-w-[900px] table-fixed text-left">
-  <colgroup>
-    <col className="w-[22%]" />
-    <col className="w-[22%]" />
-    <col className="w-[22%]" />
-    <col className="w-[22%]" />
-    <col className="w-[12%]" />
-  </colgroup>
+          <SystemTable columns={5} minWidth={960} cellWidth={150}>
             <thead className="bg-[#fafbfc] text-[10px] uppercase tracking-[0.08em] text-[#949ba6]">
-              <tr><th className="px-6 py-4">Submission</th><th className="px-6 py-4">Employee</th><th className="px-6 py-4">Submitted</th><th className="px-6 py-4">Status</th><th className="px-6 py-4"><div className="ml-auto w-24 text-left">Action</div></th></tr>
+              <tr><th className="px-6 py-4">Submission</th><th className="px-6 py-4">Employee</th><th className="px-6 py-4">Submitted</th><th className="px-6 py-4">Status</th><th className="px-6 py-4"><div className="w-full text-left">Action</div></th></tr>
             </thead>
             <tbody>
               {items.map((item) => (
@@ -114,7 +109,7 @@ export default function ManagementSubmissions() {
                   <td className="px-6 py-4 text-xs text-[#707782]">{item.submitted}</td>
                   <td className="px-6 py-4"><span className={`rounded-full px-3 py-1.5 text-[10px] font-bold ${statusStyles[item.status]}`}>{item.status}</span></td>
                   <td className="px-6 py-4 align-middle">
-  <div className="ml-auto w-24">
+  <div className="w-full">
     <button type="button" onClick={() => openReview(item.id)} className="flex w-full items-center justify-center gap-2 rounded-full border border-[#e6eaf0] px-4 py-2 text-[10px] font-bold transition hover:border-[#2f80ed] hover:text-[#2f80ed]">
                       Review <ExternalLink size={14} strokeWidth={1.8} className="shrink-0" />
                     </button>
@@ -123,7 +118,7 @@ export default function ManagementSubmissions() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </SystemTable>
         </div>
       </section>
 

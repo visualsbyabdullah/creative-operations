@@ -81,7 +81,7 @@ export default function LoginForm() {
       router.refresh();
     } catch {
       setError(
-        "Login process mein unexpected error aya.",
+        "An unexpected error occurred during login.",
       );
     } finally {
       setIsLoading(false);

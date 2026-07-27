@@ -1,5 +1,7 @@
 "use client";
 
+import SystemTable from "@/components/ui/SystemTable";
+
 import { useMemo, useState } from "react";
 
 import {
@@ -661,7 +663,7 @@ export default function SubmissionsManagement() {
 
           <section className="mt-5 overflow-hidden rounded-[24px] border border-[#edf0f5] bg-white">
             <div className="dashboard-scrollbar overflow-x-auto">
-              <table className="app-table min-w-[1050px] w-full border-collapse">
+              <SystemTable columns={6} minWidth={1120} cellWidth={150}>
                 <thead>
                   <tr className="border-b border-[#edf0f5] bg-[#f8fafc] text-left">
                     <th className="px-5 py-4 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#9198a3] text-[11px]">
@@ -787,7 +789,7 @@ export default function SubmissionsManagement() {
                     ),
                   )}
                 </tbody>
-              </table>
+              </SystemTable>
             </div>
 
             {filteredSubmissions.length ===

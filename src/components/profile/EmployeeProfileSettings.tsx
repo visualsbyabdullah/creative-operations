@@ -121,7 +121,7 @@ export default function EmployeeProfileSettings() {
           : "hamza@creativeops.com",
       phone: "+92 300 1234567",
       location: "Islamabad, Pakistan",
-      workingHours: "9:00 AM ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ 6:00 PM",
+      workingHours: "9:00 AM - 6:00 PM",
       bio:
         selectedDepartment ===
         "Graphic Design"

@@ -1,5 +1,7 @@
 "use client";
 
+import SystemTable from "@/components/ui/SystemTable";
+
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { CircleAlert, Clock3, ExternalLink, ListChecks, Plus, Send, Users } from "lucide-react";
@@ -117,7 +119,7 @@ export default function ManagementDashboard({ profile }: { profile: EmployeeProf
               </div>
 
               <div className="dashboard-scrollbar overflow-x-auto">
-                <table className="app-table w-full min-w-[720px] text-left">
+                <SystemTable columns={5} minWidth={920} cellWidth={144}>
                   <thead className="bg-[#fafbfc] text-[10px] uppercase tracking-[0.08em] text-[#949ba6]">
                     <tr><th className="px-6 py-4">Employee</th><th className="px-6 py-4">Active</th><th className="px-6 py-4">Completed</th><th className="px-6 py-4">Weekly Progress</th><th className="px-6 py-4"><div className="text-left">Workload Status</div></th></tr>
                   </thead>
@@ -150,7 +152,7 @@ export default function ManagementDashboard({ profile }: { profile: EmployeeProf
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </SystemTable>
               </div>
             </article>
 

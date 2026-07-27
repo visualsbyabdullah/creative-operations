@@ -1,5 +1,7 @@
 "use client";
 
+import SystemTable from "@/components/ui/SystemTable";
+
 import EmployeeHeader from "@/components/layout/EmployeeHeader";
 import PillSelect from "@/components/ui/PillSelect";
 import { useEmployee } from "@/context/EmployeeContext";
@@ -814,7 +816,7 @@ const [selectedTaskId, setSelectedTaskId] =
             </div>
 
             <div className="dashboard-scrollbar overflow-x-auto">
-              <table className="app-table w-full min-w-[1080px] border-collapse text-left">
+              <SystemTable columns={6} minWidth={1140} cellWidth={155}>
                 <thead>
                   <tr className="bg-[#fafbfc] text-[11px] uppercase tracking-[0.08em] text-[#949ba6]">
                     <th className="px-6 py-4 font-semibold uppercase tracking-[0.08em]">
@@ -866,7 +868,7 @@ const [selectedTaskId, setSelectedTaskId] =
                             </p>
 
                             <p className="mt-1 text-[11px] text-[#8f96a1]">
-                              {task.brand} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â·{" "}
+                              {task.brand} -{" "}
                               {task.contentType}
                             </p>
                           </div>
@@ -925,7 +927,7 @@ const [selectedTaskId, setSelectedTaskId] =
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </SystemTable>
 
               {filteredTasks.length === 0 ? (
                 <div className="grid min-h-64 place-items-center p-8 text-center">

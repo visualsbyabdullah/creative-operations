@@ -1,0 +1,57 @@
+.table {
+  display: block;
+  width: 100%;
+  min-width: var(--system-table-min-width);
+  border-collapse: separate;
+  border-spacing: 0;
+  text-align: left;
+}
+
+.table > thead,
+.table > tbody {
+  display: block;
+  width: 100%;
+}
+
+.table > thead > tr,
+.table > tbody > tr {
+  display: grid;
+  grid-template-columns: repeat(
+    var(--system-table-columns),
+    var(--system-table-cell-width)
+  );
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding-inline: 24px;
+}
+
+.table th,
+.table td {
+  box-sizing: border-box;
+  width: var(--system-table-cell-width) !important;
+  min-width: 0;
+  max-width: var(--system-table-cell-width);
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  text-align: left !important;
+}
+
+.table th:last-child,
+.table td:last-child {
+  justify-self: end;
+  text-align: left !important;
+}
+
+.table th:last-child > *,
+.table td:last-child > * {
+  width: fit-content !important;
+  margin-left: 0 !important;
+  margin-right: auto !important;
+  text-align: left !important;
+}
+
+.table th:first-child,
+.table td:first-child {
+  justify-self: start;
+}

@@ -409,7 +409,7 @@ export default function MySchedule() {
 
               <div className="inline-flex h-11 items-center gap-2.5 rounded-full border border-[#e7ebf0] bg-white px-4 text-xs font-bold text-[#4f5762]">
                 <CalendarDays size={15} />
-                20â€“24 July 2026
+                20-24 July 2026
               </div>
 
               <button
@@ -587,7 +587,7 @@ export default function MySchedule() {
 
                           <p className="mt-1 text-[10px] text-[#969da8]">
                             {dayTasks[0]?.date ??
-                              "â€”"}
+                              "Not available"}
                           </p>
                         </div>
 

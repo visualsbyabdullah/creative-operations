@@ -1,5 +1,7 @@
 "use client";
 
+import SystemTable from "@/components/ui/SystemTable";
+
 import {
   MoreHorizontal,
   Plus,
@@ -310,13 +312,13 @@ export default function ManagementEmployees() {
         </div>
 
         <div className="dashboard-scrollbar overflow-x-auto">
-          <table className="app-table w-full min-w-[860px] text-left">
+          <SystemTable columns={4} minWidth={860} cellWidth={170}>
             <thead className="bg-[#fafbfc] text-[10px] uppercase tracking-[0.08em] text-[#949ba6]">
               <tr>
                 <th className="px-6 py-4">Employee</th>
                 <th className="px-6 py-4">Role</th>
                 <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4 text-right">Action</th>
+                <th className="px-6 py-4 text-left">Action</th>
               </tr>
             </thead>
 
@@ -381,7 +383,7 @@ export default function ManagementEmployees() {
                         openEmployee(member.id);
                       }}
                       aria-label={`Open ${member.name} details`}
-                      className="ml-auto grid size-9 place-items-center rounded-full border border-[#e8ecf2] transition hover:border-[#2f80ed] hover:text-[#2f80ed]"
+                      className="grid size-9 place-items-center rounded-full border border-[#e8ecf2] transition hover:border-[#2f80ed] hover:text-[#2f80ed]"
                     >
                       <MoreHorizontal size={15} />
                     </button>
@@ -389,7 +391,7 @@ export default function ManagementEmployees() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </SystemTable>
         </div>
       </section>
 
