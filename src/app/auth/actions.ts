@@ -4,7 +4,11 @@ import {
   getActiveProfile,
   getRoleDestination,
 } from "@/lib/auth/authorization";
-import { createClient } from "@/lib/supabase/server";
+import { modeFromRememberMe } from "@/lib/auth/persistence";
+import {
+  clearAuthPersistenceCookie,
+  createClient,
+} from "@/lib/supabase/server";
 
 const GENERIC_LOGIN_ERROR =
   "Unable to sign in with those credentials.";
@@ -80,13 +84,12 @@ export async function login(
     };
   }
 
-  /*
-   * Phase 2B2 integration boundary: rememberMe is validated but must not
-   * change cookie persistence until the supported SSR adapter is proven.
-   */
-  void record.rememberMe;
+  const persistenceMode =
+    modeFromRememberMe(record.rememberMe);
 
-  const supabase = await createClient();
+  const supabase = await createClient(
+    persistenceMode,
+  );
   const { error } =
     await supabase.auth.signInWithPassword({
       email,
@@ -94,6 +97,8 @@ export async function login(
     });
 
   if (error) {
+    await clearAuthPersistenceCookie();
+
     return {
       success: false,
       message: GENERIC_LOGIN_ERROR,
@@ -106,6 +111,7 @@ export async function login(
     await supabase.auth.signOut({
       scope: "local",
     });
+    await clearAuthPersistenceCookie();
 
     return {
       success: false,
@@ -129,9 +135,11 @@ export async function logout(): Promise<{
     const { error } = await supabase.auth.signOut({
       scope: "local",
     });
+    await clearAuthPersistenceCookie();
 
     return { success: !error };
   } catch {
+    await clearAuthPersistenceCookie();
     return { success: false };
   }
 }

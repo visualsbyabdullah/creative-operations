@@ -15,6 +15,7 @@ import {
 } from "react";
 
 import { createClient } from "@/lib/supabase/client";
+import { clearBrowserAuthPersistence } from "@/lib/supabase/cookie-adapters";
 
 export default function ResetPasswordForm() {
   const router = useRouter();
@@ -73,6 +74,7 @@ export default function ResetPasswordForm() {
     await supabase.auth.signOut({
       scope: "local",
     });
+    clearBrowserAuthPersistence();
 
     router.replace(
       "/login?password_updated=1",

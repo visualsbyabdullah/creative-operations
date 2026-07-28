@@ -5,6 +5,13 @@ import {
   type NextRequest,
 } from "next/server";
 
+import { AUTH_PERSISTENCE_COOKIE_NAME } from "@/lib/auth/persistence";
+import {
+  applyCookieBatch,
+  clearAuthPersistence,
+  readAuthPersistence,
+} from "@/lib/supabase/cookie-adapters";
+
 export async function updateSession(
   request: NextRequest,
 ) {
@@ -22,6 +29,9 @@ export async function updateSession(
     return response;
   }
 
+  const persistenceMode =
+    readAuthPersistence(request.cookies);
+
   const supabase = createServerClient(
     supabaseUrl,
     supabaseKey,
@@ -31,8 +41,14 @@ export async function updateSession(
           return request.cookies.getAll();
         },
 
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(
+        setAll(cookiesToSet, headers) {
+          const transformed =
+            applyCookieBatch(
+              cookiesToSet,
+              persistenceMode,
+            );
+
+          transformed.forEach(
             ({
               name,
               value,
@@ -50,6 +66,15 @@ export async function updateSession(
               );
             },
           );
+
+          Object.entries(headers).forEach(
+            ([name, value]) => {
+              response.headers.set(
+                name,
+                value,
+              );
+            },
+          );
         },
       },
     },
@@ -61,6 +86,26 @@ export async function updateSession(
 
   const isAuthenticated =
     Boolean(claimsData?.claims?.sub);
+
+  if (
+    !isAuthenticated &&
+    request.cookies.has(
+      AUTH_PERSISTENCE_COOKIE_NAME,
+    )
+  ) {
+    clearAuthPersistence({
+      getAll: () =>
+        request.cookies.getAll(),
+      set: (name, value, options) => {
+        request.cookies.set(name, value);
+        response.cookies.set(
+          name,
+          value,
+          options,
+        );
+      },
+    });
+  }
 
   const pathname =
     request.nextUrl.pathname;
@@ -99,9 +144,34 @@ export async function updateSession(
     loginUrl.pathname = "/login";
     loginUrl.search = "";
 
-    return NextResponse.redirect(
+    const redirectResponse =
+      NextResponse.redirect(
       loginUrl,
     );
+
+    response.cookies
+      .getAll()
+      .forEach((cookie) => {
+        redirectResponse.cookies.set(cookie);
+      });
+
+    for (const headerName of [
+      "Cache-Control",
+      "Expires",
+      "Pragma",
+    ]) {
+      const value =
+        response.headers.get(headerName);
+
+      if (value) {
+        redirectResponse.headers.set(
+          headerName,
+          value,
+        );
+      }
+    }
+
+    return redirectResponse;
   }
 
   return response;

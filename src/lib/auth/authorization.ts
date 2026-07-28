@@ -45,6 +45,7 @@ export type ProfileLookup =
   | {
       status:
         | "unauthenticated"
+        | "verification_failed"
         | "missing"
         | "inactive"
         | "invalid_role";
@@ -57,8 +58,17 @@ export async function getActiveProfile(): Promise<ProfileLookup> {
     error: userError,
   } = await supabase.auth.getUser();
 
-  if (userError || !user) {
+  if (
+    userError?.name ===
+    "AuthSessionMissingError"
+  ) {
     return { status: "unauthenticated" };
+  }
+
+  if (userError || !user) {
+    return {
+      status: "verification_failed",
+    };
   }
 
   const { data, error } = await supabase

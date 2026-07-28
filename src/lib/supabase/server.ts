@@ -1,7 +1,16 @@
 ﻿import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
-export async function createClient() {
+import type { AuthPersistenceMode } from "@/lib/auth/persistence";
+import {
+  clearAuthPersistence,
+  createServerCookieAdapter,
+  setAuthPersistence,
+} from "@/lib/supabase/cookie-adapters";
+
+export async function createClient(
+  explicitMode?: AuthPersistenceMode,
+) {
   const cookieStore = await cookies();
 
   const supabaseUrl =
@@ -16,38 +25,44 @@ export async function createClient() {
     );
   }
 
+  if (explicitMode) {
+    setAuthPersistence(
+      cookieStore,
+      explicitMode,
+    );
+  }
+
   return createServerClient(
     supabaseUrl,
     supabaseKey,
     {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(
-              ({
+      cookies: createServerCookieAdapter(
+        {
+          getAll: () =>
+            cookieStore.getAll(),
+          set: (name, value, options) => {
+            try {
+              cookieStore.set(
                 name,
                 value,
                 options,
-              }) => {
-                cookieStore.set(
-                  name,
-                  value,
-                  options,
-                );
-              },
-            );
-          } catch {
-            /*
-             * Server Components cannot always
-             * modify cookies directly.
-             */
-          }
+              );
+            } catch {
+              /*
+               * Server Components cannot always
+               * modify cookies directly.
+               */
+            }
+          },
         },
-      },
+        explicitMode,
+      ),
     },
   );
+}
+
+export async function clearAuthPersistenceCookie() {
+  const cookieStore = await cookies();
+
+  clearAuthPersistence(cookieStore);
 }
