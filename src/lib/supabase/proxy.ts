@@ -7,6 +7,11 @@ import {
 
 import { AUTH_PERSISTENCE_COOKIE_NAME } from "@/lib/auth/persistence";
 import {
+  AUTH_RECOVERY_COOKIE_NAME,
+  recoveryCookieDeletionOptions,
+  verifyRecoveryState,
+} from "@/lib/auth/recovery-state";
+import {
   applyCookieBatch,
   clearAuthPersistence,
   readAuthPersistence,
@@ -86,6 +91,32 @@ export async function updateSession(
 
   const isAuthenticated =
     Boolean(claimsData?.claims?.sub);
+  const pathname =
+    request.nextUrl.pathname;
+
+  if (pathname === "/reset-password") {
+    const userId =
+      typeof claimsData?.claims?.sub ===
+      "string"
+        ? claimsData.claims.sub
+        : "";
+    const recoveryValue =
+      request.cookies.get(
+        AUTH_RECOVERY_COOKIE_NAME,
+      )?.value;
+
+    if (
+      recoveryValue &&
+      !verifyRecoveryState(
+        recoveryValue,
+        userId,
+      )
+    ) {
+      response.cookies.set(
+        recoveryCookieDeletionOptions(),
+      );
+    }
+  }
 
   if (
     !isAuthenticated &&
@@ -106,9 +137,6 @@ export async function updateSession(
       },
     });
   }
-
-  const pathname =
-    request.nextUrl.pathname;
 
   const protectedRoutes = [
     "/",

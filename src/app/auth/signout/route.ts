@@ -4,6 +4,10 @@ import {
   clearAuthPersistenceCookie,
   createClient,
 } from "@/lib/supabase/server";
+import {
+  getTrustedAppOrigin,
+  recoveryCookieDeletionOptions,
+} from "@/lib/auth/recovery-state";
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
@@ -22,11 +26,17 @@ export async function GET(request: Request) {
   await clearAuthPersistenceCookie();
 
   const response = NextResponse.redirect(
-    new URL(destination, requestUrl.origin),
+    new URL(
+      destination,
+      getTrustedAppOrigin(),
+    ),
   );
   response.headers.set(
     "Cache-Control",
     "private, no-store",
+  );
+  response.cookies.set(
+    recoveryCookieDeletionOptions(),
   );
 
   return response;

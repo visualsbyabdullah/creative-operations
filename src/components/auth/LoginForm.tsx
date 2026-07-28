@@ -18,7 +18,11 @@ import {
 import PixelBlast from "@/components/ui/PixelBlast";
 import { login } from "@/app/auth/actions";
 
-export default function LoginForm() {
+export default function LoginForm({
+  successMessage,
+}: {
+  successMessage?: string;
+}) {
   const router = useRouter();
 
   const [email, setEmail] = useState("");
@@ -123,6 +127,14 @@ export default function LoginForm() {
           onSubmit={handleSubmit}
           className="mt-5 flex flex-col gap-5"
         >
+          {successMessage ? (
+            <div
+              role="status"
+              className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-xs font-semibold leading-5 text-emerald-700"
+            >
+              {successMessage}
+            </div>
+          ) : null}
           <label className="block">
             <span className="text-xs font-bold text-[#4d5560]">
               Email address
