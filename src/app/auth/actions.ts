@@ -10,6 +10,15 @@ import {
   recordRecoverySecurityEvent,
 } from "@/lib/auth/recovery-integration";
 import {
+  auditSecurityEvent,
+  clearRateLimit,
+  emailIdentifier,
+  enforceRateLimit,
+  isBlocked,
+  recoveryContextIdentifier,
+  securityContext,
+} from "@/lib/security/auth-security";
+import {
   assertRecoveryConfiguration,
   AUTH_RECOVERY_COOKIE_NAME,
   getTrustedAppOrigin,
@@ -75,11 +84,42 @@ function isValidEmail(value: string) {
 export async function login(
   input: unknown,
 ): Promise<LoginResult> {
+  let context;
+
+  try {
+    context = await securityContext("login_action");
+  } catch {
+    return {
+      success: false,
+      message: GENERIC_LOGIN_ERROR,
+    };
+  }
+  const ipDecision = await enforceRateLimit(
+    "login_ip",
+    context,
+  );
+
+  if (isBlocked(ipDecision)) {
+    return {
+      success: false,
+      message: GENERIC_LOGIN_ERROR,
+    };
+  }
+
   if (
     !input ||
     typeof input !== "object" ||
     Array.isArray(input)
   ) {
+    await auditSecurityEvent(
+      context,
+      "login_failed",
+      "failed",
+      {
+        provider: "supabase",
+        reason_code: "invalid_credentials",
+      },
+    );
     return {
       success: false,
       message: GENERIC_LOGIN_ERROR,
@@ -95,6 +135,15 @@ export async function login(
         key !== "rememberMe",
     )
   ) {
+    await auditSecurityEvent(
+      context,
+      "login_failed",
+      "failed",
+      {
+        provider: "supabase",
+        reason_code: "invalid_credentials",
+      },
+    );
     return {
       success: false,
       message: GENERIC_LOGIN_ERROR,
@@ -114,6 +163,15 @@ export async function login(
     password.length > 4096 ||
     typeof record.rememberMe !== "boolean"
   ) {
+    await auditSecurityEvent(
+      context,
+      "login_failed",
+      "failed",
+      {
+        provider: "supabase",
+        reason_code: "invalid_credentials",
+      },
+    );
     return {
       success: false,
       message: GENERIC_LOGIN_ERROR,
@@ -122,6 +180,19 @@ export async function login(
 
   const persistenceMode =
     modeFromRememberMe(record.rememberMe);
+  const emailId = emailIdentifier(email);
+  const targetedDecision = await enforceRateLimit(
+    "login_targeted",
+    context,
+    [emailId],
+  );
+
+  if (isBlocked(targetedDecision)) {
+    return {
+      success: false,
+      message: GENERIC_LOGIN_ERROR,
+    };
+  }
 
   const supabase = await createClient(
     persistenceMode,
@@ -134,6 +205,16 @@ export async function login(
 
   if (error) {
     await clearAuthPersistenceCookie();
+    await auditSecurityEvent(
+      context,
+      "login_failed",
+      "failed",
+      {
+        provider: "supabase",
+        reason_code: "invalid_credentials",
+        persistence_mode: persistenceMode,
+      },
+    );
 
     return {
       success: false,
@@ -148,12 +229,52 @@ export async function login(
       scope: "local",
     });
     await clearAuthPersistenceCookie();
+    const event =
+      profileResult.status === "inactive"
+        ? "inactive_account_denied"
+        : profileResult.status === "invalid_role"
+          ? "invalid_role_denied"
+          : profileResult.status === "missing"
+            ? "missing_profile_denied"
+            : "authentication_verification_failed";
+    await auditSecurityEvent(
+      context,
+      event,
+      "denied",
+      event === "authentication_verification_failed"
+        ? { reason_code: "verification_failed" }
+        : {
+            profile_status:
+              profileResult.status === "inactive"
+                ? "inactive"
+                : profileResult.status === "invalid_role"
+                  ? "invalid_role"
+                  : "missing",
+          },
+    );
 
     return {
       success: false,
       message: GENERIC_LOGIN_ERROR,
     };
   }
+
+  await clearRateLimit(
+    "login_targeted",
+    context,
+    [emailId],
+  );
+  await auditSecurityEvent(
+    context,
+    "login_succeeded",
+    "succeeded",
+    {
+      provider: "supabase",
+      persistence_mode: persistenceMode,
+      role: profileResult.profile.role,
+    },
+    profileResult.profile.id,
+  );
 
   return {
     success: true,
@@ -166,8 +287,6 @@ export async function login(
 export async function requestPasswordReset(
   input: unknown,
 ): Promise<ForgotPasswordResult> {
-  await checkRecoveryRateLimit("request");
-
   const email =
     input &&
     typeof input === "object" &&
@@ -180,6 +299,33 @@ export async function requestPasswordReset(
             .email,
         )
       : "";
+
+  let context;
+
+  try {
+    context = await securityContext(
+      "forgot_password_action",
+    );
+    const decisions = await checkRecoveryRateLimit(
+      "request",
+      context,
+      isValidEmail(email)
+        ? emailIdentifier(email)
+        : undefined,
+    );
+
+    if (isBlocked(...decisions)) {
+      return {
+        success: true,
+        message: GENERIC_RECOVERY_MESSAGE,
+      };
+    }
+  } catch {
+    return {
+      success: true,
+      message: GENERIC_RECOVERY_MESSAGE,
+    };
+  }
 
   if (isValidEmail(email)) {
     try {
@@ -201,6 +347,7 @@ export async function requestPasswordReset(
 
   await recordRecoverySecurityEvent(
     "password_reset_requested",
+    context,
   );
 
   return {
@@ -224,7 +371,32 @@ async function clearRecoveryCookie() {
 export async function resetPassword(
   input: unknown,
 ): Promise<ResetPasswordResult> {
-  await checkRecoveryRateLimit("reset");
+  let context;
+
+  try {
+    context = await securityContext(
+      "reset_password_action",
+    );
+    const [ipDecision] =
+      await checkRecoveryRateLimit(
+        "reset",
+        context,
+      );
+
+    if (isBlocked(ipDecision)) {
+      return {
+        success: false,
+        code: "reset_failed",
+        message: GENERIC_RESET_ERROR,
+      };
+    }
+  } catch {
+    return {
+      success: false,
+      code: "reset_failed",
+      message: GENERIC_RESET_ERROR,
+    };
+  }
 
   const record =
     input &&
@@ -247,6 +419,10 @@ export async function resetPassword(
       : "";
 
   if (password !== confirmation) {
+    await recordRecoverySecurityEvent(
+      "password_reset_failed",
+      context,
+    );
     return {
       success: false,
       code: "password_mismatch",
@@ -260,6 +436,10 @@ export async function resetPassword(
     password.length < 12 ||
     password.length > 4096
   ) {
+    await recordRecoverySecurityEvent(
+      "password_reset_failed",
+      context,
+    );
     return {
       success: false,
       code: "password_policy",
@@ -289,6 +469,7 @@ export async function resetPassword(
     await clearRecoveryCookie();
     await recordRecoverySecurityEvent(
       "password_recovery_rejected",
+      context,
       user?.id,
     );
 
@@ -300,6 +481,22 @@ export async function resetPassword(
     };
   }
 
+  const recoveryIdentifier =
+    recoveryContextIdentifier(user.id);
+  const targetedDecision = await enforceRateLimit(
+    "reset_password_targeted",
+    context,
+    [recoveryIdentifier],
+  );
+
+  if (isBlocked(targetedDecision)) {
+    return {
+      success: false,
+      code: "reset_failed",
+      message: GENERIC_RESET_ERROR,
+    };
+  }
+
   const { error } =
     await supabase.auth.updateUser({
       password,
@@ -308,6 +505,7 @@ export async function resetPassword(
   if (error) {
     await recordRecoverySecurityEvent(
       "password_reset_failed",
+      context,
       user.id,
     );
 
@@ -320,6 +518,13 @@ export async function resetPassword(
 
   await clearRecoveryCookie();
   await clearAuthPersistenceCookie();
+  await auditSecurityEvent(
+    context,
+    "session_cleanup_performed",
+    "cleaned",
+    { cleanup_kind: "recovery" },
+    user.id,
+  );
 
   const { error: globalSignOutError } =
     await supabase.auth.signOut({
@@ -334,6 +539,7 @@ export async function resetPassword(
 
   await recordRecoverySecurityEvent(
     "password_reset_succeeded",
+    context,
     user.id,
   );
 
@@ -347,16 +553,56 @@ export async function resetPassword(
 export async function logout(): Promise<{
   success: boolean;
 }> {
+  let context;
+
+  try {
+    context = await securityContext("logout_action");
+  } catch {
+    context = null;
+  }
+
   try {
     const supabase = await createClient();
     const { error } = await supabase.auth.signOut({
       scope: "local",
     });
     await clearAuthPersistenceCookie();
+    if (context) {
+      await auditSecurityEvent(
+        context,
+        error
+          ? "logout_failed"
+          : "logout_succeeded",
+        error ? "failed" : "succeeded",
+        error
+          ? {
+              logout_scope: "local",
+              reason_code: "provider_rejected",
+            }
+          : { logout_scope: "local" },
+      );
+      await auditSecurityEvent(
+        context,
+        "session_cleanup_performed",
+        "cleaned",
+        { cleanup_kind: "persistence" },
+      );
+    }
 
     return { success: !error };
   } catch {
     await clearAuthPersistenceCookie();
+    if (context) {
+      await auditSecurityEvent(
+        context,
+        "logout_failed",
+        "failed",
+        {
+          logout_scope: "local",
+          reason_code: "provider_rejected",
+        },
+      );
+    }
     return { success: false };
   }
 }

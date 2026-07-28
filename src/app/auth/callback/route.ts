@@ -5,6 +5,11 @@ import {
   recordRecoverySecurityEvent,
 } from "@/lib/auth/recovery-integration";
 import {
+  auditSecurityEvent,
+  isBlocked,
+  securityContext,
+} from "@/lib/security/auth-security";
+import {
   assertRecoveryConfiguration,
   createRecoveryState,
   getTrustedAppOrigin,
@@ -26,10 +31,14 @@ const ALLOWED_CALLBACK_PARAMETERS = new Set([
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   let trustedOrigin: string;
+  let context;
 
   try {
     assertRecoveryConfiguration();
     trustedOrigin = getTrustedAppOrigin();
+    context = await securityContext(
+      "recovery_callback",
+    );
   } catch {
     return new Response(
       "Authentication recovery is unavailable.",
@@ -38,6 +47,40 @@ export async function GET(request: Request) {
         headers: {
           "Cache-Control":
             "private, no-store",
+        },
+      },
+    );
+  }
+  const [rateLimitDecision] =
+    await checkRecoveryRateLimit(
+      "callback",
+      context,
+    );
+
+  if (rateLimitDecision.status === "limited") {
+    return new Response(
+      "This recovery request cannot be processed.",
+      {
+        status: 429,
+        headers: {
+          "Cache-Control": "private, no-store",
+          "Retry-After": String(
+            rateLimitDecision.retryAfterSeconds,
+          ),
+          "x-request-id": context.requestId,
+        },
+      },
+    );
+  }
+
+  if (isBlocked(rateLimitDecision)) {
+    return new Response(
+      "Authentication recovery is unavailable.",
+      {
+        status: 503,
+        headers: {
+          "Cache-Control": "private, no-store",
+          "x-request-id": context.requestId,
         },
       },
     );
@@ -59,8 +102,6 @@ export async function GET(request: Request) {
   const hasProviderError = keys.some(
     (key) => key.startsWith("error"),
   );
-
-  await checkRecoveryRateLimit("callback");
 
   if (
     !hasUnknownParameter &&
@@ -109,8 +150,13 @@ export async function GET(request: Request) {
           "Cache-Control",
           "private, no-store",
         );
+        response.headers.set(
+          "x-request-id",
+          context.requestId,
+        );
         await recordRecoverySecurityEvent(
           "password_recovery_verified",
+          context,
           user.id,
         );
 
@@ -122,10 +168,17 @@ export async function GET(request: Request) {
       scope: "local",
     });
     await clearAuthPersistenceCookie();
+    await auditSecurityEvent(
+      context,
+      "session_cleanup_performed",
+      "cleaned",
+      { cleanup_kind: "session" },
+    );
   }
 
   await recordRecoverySecurityEvent(
     "password_recovery_rejected",
+    context,
   );
   const response = NextResponse.redirect(
     new URL(
@@ -139,6 +192,10 @@ export async function GET(request: Request) {
   response.headers.set(
     "Cache-Control",
     "private, no-store",
+  );
+  response.headers.set(
+    "x-request-id",
+    context.requestId,
   );
 
   return response;
