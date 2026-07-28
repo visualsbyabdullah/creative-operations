@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 
 import { defaultEmployee } from "@/config/employee";
+import { logout } from "@/app/auth/actions";
 import { createClient } from "@/lib/supabase/client";
 
 import { employeeNavigation } from "@/config/employeeNavigation";
@@ -83,6 +84,10 @@ export default function EmployeeHeader({
   const [
     isSigningOut,
     setIsSigningOut,
+  ] = useState(false);
+  const [
+    signOutError,
+    setSignOutError,
   ] = useState(false);
 
   const profileMenuRef =
@@ -196,21 +201,12 @@ export default function EmployeeHeader({
     }
 
     setIsSigningOut(true);
+    setSignOutError(false);
 
-    const supabase = createClient();
+    const result = await logout();
 
-    const {
-      error,
-    } = await supabase.auth.signOut({
-      scope: "local",
-    });
-
-    if (error) {
-      console.error(
-        "Unable to sign out:",
-        error.message,
-      );
-
+    if (!result.success) {
+      setSignOutError(true);
       setIsSigningOut(false);
       return;
     }
@@ -385,6 +381,14 @@ export default function EmployeeHeader({
                   </div>
 
                   <div className="mt-2 space-y-1">
+                    {signOutError ? (
+                      <p
+                        role="alert"
+                        className="px-3 py-2 text-[11px] font-semibold text-red-600"
+                      >
+                        Unable to sign out. Please try again.
+                      </p>
+                    ) : null}
                     <Link
                       href="/profile"
                       role="menuitem"

@@ -3,8 +3,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  useEffect,
-  useRef,
   useState,
   type FormEvent,
 } from "react";
@@ -18,7 +16,7 @@ import {
 } from "lucide-react";
 
 import PixelBlast from "@/components/ui/PixelBlast";
-import { createClient } from "@/lib/supabase/client";
+import { login } from "@/app/auth/actions";
 
 export default function LoginForm() {
   const router = useRouter();
@@ -34,52 +32,6 @@ export default function LoginForm() {
   const [isLoading, setIsLoading] =
     useState(false);
 
-  const hasLoadedRememberedEmail =
-    useRef(false);
-
-  useEffect(() => {
-    const rememberedEmail =
-      window.localStorage.getItem(
-        "creativeops-remembered-email",
-      );
-
-    const timer = window.setTimeout(() => {
-      if (rememberedEmail) {
-        setEmail(rememberedEmail);
-        setRememberMe(true);
-      }
-
-      hasLoadedRememberedEmail.current =
-        true;
-    }, 0);
-
-    return () => {
-      window.clearTimeout(timer);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!hasLoadedRememberedEmail.current) {
-      return;
-    }
-
-    const normalizedEmail = email.trim();
-
-    if (!rememberMe) {
-      window.localStorage.removeItem(
-        "creativeops-remembered-email",
-      );
-      return;
-    }
-
-    if (normalizedEmail) {
-      window.localStorage.setItem(
-        "creativeops-remembered-email",
-        normalizedEmail,
-      );
-    }
-  }, [email, rememberMe]);
-
   async function handleSubmit(
     event: FormEvent<HTMLFormElement>,
   ) {
@@ -89,30 +41,22 @@ export default function LoginForm() {
     setIsLoading(true);
 
     try {
-      const supabase = createClient();
+      const result = await login({
+        email,
+        password,
+        rememberMe,
+      });
 
-      const {
-        data,
-        error: signInError,
-      } =
-        await supabase.auth.signInWithPassword({
-          email: email.trim().toLowerCase(),
-          password,
-        });
-
-      if (signInError || !data.user) {
-        setError(
-          signInError?.message ??
-            "Login unsuccessful.",
-        );
+      if (!result.success) {
+        setError(result.message);
         return;
       }
 
-      router.replace("/dashboard");
+      router.replace(result.destination);
       router.refresh();
     } catch {
       setError(
-        "An unexpected error occurred during login.",
+        "Unable to sign in with those credentials.",
       );
     } finally {
       setIsLoading(false);

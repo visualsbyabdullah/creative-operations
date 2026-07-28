@@ -66,6 +66,7 @@ export async function updateSession(
     request.nextUrl.pathname;
 
   const protectedRoutes = [
+    "/",
     "/dashboard",
     "/tasks",
     "/schedule",
@@ -75,15 +76,17 @@ export async function updateSession(
     "/settings",
     "/brands",
     "/planner",
+    "/employees",
   ];
 
   const isProtectedRoute =
     protectedRoutes.some(
       (route) =>
         pathname === route ||
+        (route !== "/" &&
         pathname.startsWith(
           `${route}/`,
-        ),
+        )),
     );
 
   if (
@@ -94,30 +97,10 @@ export async function updateSession(
       request.nextUrl.clone();
 
     loginUrl.pathname = "/login";
-    loginUrl.searchParams.set(
-      "next",
-      pathname,
-    );
+    loginUrl.search = "";
 
     return NextResponse.redirect(
       loginUrl,
-    );
-  }
-
-  if (
-    pathname === "/login" &&
-    isAuthenticated
-  ) {
-    const dashboardUrl =
-      request.nextUrl.clone();
-
-    dashboardUrl.pathname =
-      "/dashboard";
-
-    dashboardUrl.search = "";
-
-    return NextResponse.redirect(
-      dashboardUrl,
     );
   }
 
