@@ -102,7 +102,7 @@ begin
   v_bucket_started_at :=
     pg_catalog.to_timestamp(
       pg_catalog.floor(
-        pg_catalog.extract(epoch from v_now) /
+        extract(epoch from v_now) /
         v_window_seconds
       ) * v_window_seconds
     );
@@ -141,14 +141,14 @@ begin
   return query
   select
     v_count <= v_limit,
-    pg_catalog.greatest(v_limit - v_count, 0),
+    greatest(v_limit - v_count, 0),
     v_expires_at,
-    pg_catalog.greatest(
+    greatest(
       1,
-      pg_catalog.least(
+      least(
         v_window_seconds,
         pg_catalog.ceil(
-          pg_catalog.extract(
+          extract(
             epoch from (v_expires_at - v_now)
           )
         )::integer
