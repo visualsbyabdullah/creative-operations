@@ -206,7 +206,7 @@ select extensions.ok(
   )
 )
 from (
-  values ('anon'), ('authenticated')
+  values ('anon')
 ) as application_roles(role_name)
 cross join (
   values
@@ -231,25 +231,20 @@ cross join (
   values ('select'), ('insert'), ('update'), ('delete')
 ) as privileges(privilege_name);
 
-select extensions.is(
-  (
-    select pg_catalog.count(*)::integer
-    from pg_catalog.pg_policy policy
-    where policy.polrelid = pg_catalog.format(
-      'public.%I',
-      table_name
-    )::regclass
+select extensions.ok(
+  pg_catalog.has_table_privilege(
+    'authenticated',
+    pg_catalog.format('public.%I', table_name),
+    'select'
   ),
-  0,
   pg_catalog.format(
-    'public.%s has no Phase 4 RLS policies',
+    'authenticated has SELECT on public.%s for RLS-filtered access',
     table_name
   )
 )
 from (
   values
     ('workspaces'),
-    ('profiles'),
     ('notification_preferences'),
     ('brands'),
     ('brand_members'),
@@ -264,7 +259,111 @@ from (
     ('submission_reviews'),
     ('notifications'),
     ('attachments')
-) as policy_free_tables(table_name);
+) as readable_tables(table_name);
+
+select extensions.ok(
+  (
+    select pg_catalog.bool_and(
+      pg_catalog.has_column_privilege(
+        'authenticated',
+        'public.profiles',
+        column_name,
+        'select'
+      )
+    )
+    from (
+      values
+        ('id'), ('email'), ('full_name'), ('role'), ('department'),
+        ('job_title'), ('phone'), ('timezone'), ('bio'), ('avatar_url'),
+        ('is_active'), ('manager_id'), ('created_at'), ('updated_at')
+    ) as readable_profile_columns(column_name)
+  ),
+  'authenticated has SELECT only through the approved profile projection'
+);
+
+select extensions.ok(
+  pg_catalog.has_table_privilege(
+    'authenticated',
+    'public.notification_preferences',
+    privilege_name
+  ),
+  pg_catalog.format(
+    'authenticated has %s on own RLS-filtered notification preferences',
+    privilege_name
+  )
+)
+from (
+  values ('insert'), ('update'), ('delete')
+) as preference_privileges(privilege_name);
+
+select extensions.ok(
+  not pg_catalog.has_table_privilege(
+    'authenticated',
+    pg_catalog.format('public.%I', table_name),
+    privilege_name
+  ),
+  pg_catalog.format(
+    'authenticated has no direct %s on public.%s',
+    privilege_name,
+    table_name
+  )
+)
+from (
+  values
+    ('workspaces'),
+    ('profiles'),
+    ('brands'),
+    ('brand_members'),
+    ('brand_platforms'),
+    ('brand_schedule_slots'),
+    ('brand_schedule_slot_platforms'),
+    ('tasks'),
+    ('task_assignees'),
+    ('task_platforms'),
+    ('task_status_events'),
+    ('submissions'),
+    ('submission_reviews'),
+    ('notifications'),
+    ('attachments')
+) as rpc_write_tables(table_name)
+cross join (
+  values ('insert'), ('update'), ('delete')
+) as privileges(privilege_name);
+
+select extensions.is(
+  (
+    select pg_catalog.count(*)::integer
+    from pg_catalog.pg_policy policy
+    where policy.polrelid = pg_catalog.format(
+      'public.%I',
+      table_name
+    )::regclass
+  ),
+  expected_count,
+  pg_catalog.format(
+    'public.%s has the approved Phase 4 RLS policy count',
+    table_name
+  )
+)
+from (
+  values
+    ('workspaces', 1),
+    ('profiles', 1),
+    ('notification_preferences', 4),
+    ('brands', 1),
+    ('brand_members', 1),
+    ('brand_platforms', 1),
+    ('brand_schedule_slots', 1),
+    ('brand_schedule_slot_platforms', 1),
+    ('tasks', 1),
+    ('task_assignees', 1),
+    ('task_platforms', 1),
+    ('task_status_events', 1),
+    ('submissions', 1),
+    ('submission_reviews', 1),
+    ('notifications', 1),
+    ('attachments', 1)
+) as policy_tables(table_name, expected_count);
 
 select extensions.ok(
   exists (
