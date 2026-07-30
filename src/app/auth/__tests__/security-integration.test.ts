@@ -52,6 +52,18 @@ describe("authentication security integration", () => {
     expect(callback).toContain(
       '"password_recovery_verified"',
     );
+    expect(actions).toContain(
+      'new URL(\n        "/auth/callback",\n        getTrustedAppOrigin(),',
+    );
+    expect(actions).not.toContain(
+      "NEXT_PUBLIC_SITE_URL",
+    );
+    expect(callback).not.toContain(
+      'request.headers.get("host")',
+    );
+    expect(callback).not.toContain(
+      'request.headers.get("referer")',
+    );
   });
 
   it("preserves Remember Me cookie behavior and deletion writes", () => {

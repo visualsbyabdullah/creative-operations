@@ -7,6 +7,8 @@ describe("admin Auth boundary", () => {
     const root = process.cwd();
     const adminAuth = readFileSync(join(root, "src/lib/supabase/admin-auth.ts"), "utf8");
     expect(adminAuth).toContain('import "server-only"');
+    expect(adminAuth).toContain("getTrustedAppOrigin");
+    expect(adminAuth).not.toContain("NEXT_PUBLIC_SITE_URL");
 
     const clientFiles = [
       "src/components/management/ManagementEmployees.tsx",
@@ -19,4 +21,3 @@ describe("admin Auth boundary", () => {
     }
   });
 });
-
