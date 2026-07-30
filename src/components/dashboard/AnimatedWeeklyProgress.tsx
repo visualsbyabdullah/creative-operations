@@ -6,7 +6,6 @@ import {
   useState,
 } from "react";
 
-import { MoreHorizontal } from "lucide-react";
 
 type AnimatedWeeklyProgressProps = {
   percentage?: number;
@@ -97,13 +96,6 @@ export default function AnimatedWeeklyProgress({
           </p>
         </div>
 
-        <button
-          type="button"
-          aria-label="Weekly progress options"
-          className="grid size-9 place-items-center rounded-full border border-[#edf0f5] text-[#7b838f]"
-        >
-          <MoreHorizontal size={16} />
-        </button>
       </header>
 
       <div className="relative mx-auto mt-10 h-[190px] w-full max-w-[310px]">

@@ -14,13 +14,19 @@ import { useMemo, useState } from "react";
 import EmployeeDetailsDrawer from "@/components/management/EmployeeDetailsDrawer";
 import ManagementShell from "@/components/management/ManagementShell";
 import PillSelect from "@/components/ui/PillSelect";
+import type { EmployeeDirectoryRow } from "@/lib/employees/employee-types";
+import {
+  getEmployeeDetailAction,
+  updateManagedEmployeeAction,
+} from "@/app/employees/actions";
+import { inviteEmployeeAction } from "@/app/employees/invite-actions";
 
-type Role = "Graphic Designer" | "Video Editor";
+type Role = "Manager" | "HR" | "Graphic Designer" | "Video Editor";
 type Status = "Active" | "Inactive";
 type WorkloadStatus = "On Track" | "Review Pending" | "Delayed";
 
 type Member = {
-  id: number;
+  id: string;
   name: string;
   email: string;
   role: Role;
@@ -30,62 +36,15 @@ type Member = {
   progress: number;
   workloadStatus: WorkloadStatus;
   weekly: number[];
+  updatedAt: string;
+  department: "graphic_design" | "video_editing" | null;
 };
 
 type Draft = Pick<Member, "name" | "email" | "role" | "status">;
 
-const initialMembers: Member[] = [
-  {
-    id: 1,
-    name: "Abdullah Naeem",
-    email: "abdullah@example.com",
-    role: "Graphic Designer",
-    status: "Active",
-    active: 4,
-    completed: 8,
-    progress: 67,
-    workloadStatus: "On Track",
-    weekly: [45, 72, 58, 86, 67],
-  },
-  {
-    id: 2,
-    name: "Ali Raza",
-    email: "ali@example.com",
-    role: "Graphic Designer",
-    status: "Active",
-    active: 3,
-    completed: 9,
-    progress: 75,
-    workloadStatus: "Review Pending",
-    weekly: [62, 78, 70, 88, 75],
-  },
-  {
-    id: 3,
-    name: "Hamza Khan",
-    email: "hamza@example.com",
-    role: "Video Editor",
-    status: "Active",
-    active: 4,
-    completed: 6,
-    progress: 60,
-    workloadStatus: "Delayed",
-    weekly: [38, 64, 52, 71, 60],
-  },
-  {
-    id: 4,
-    name: "Usman Ali",
-    email: "usman@example.com",
-    role: "Video Editor",
-    status: "Active",
-    active: 3,
-    completed: 7,
-    progress: 70,
-    workloadStatus: "On Track",
-    weekly: [54, 68, 76, 64, 70],
-  },
-];
-
 const roleOptions = [
+  { label: "Manager", value: "Manager" },
+  { label: "HR", value: "HR" },
   { label: "Graphic Designer", value: "Graphic Designer" },
   { label: "Video Editor", value: "Video Editor" },
 ] satisfies { label: string; value: Role }[];
@@ -102,10 +61,37 @@ const emptyDraft: Draft = {
   status: "Active",
 };
 
-export default function ManagementEmployees() {
-  const [members, setMembers] = useState(initialMembers);
+function roleLabel(role: EmployeeDirectoryRow["role"]): Role {
+  return role === "graphic_designer" ? "Graphic Designer"
+    : role === "video_editor" ? "Video Editor"
+      : role === "hr" ? "HR" : "Manager";
+}
+
+function mapRow(row: EmployeeDirectoryRow): Member {
+  return {
+    id: row.id,
+    name: row.fullName,
+    email: row.email,
+    role: roleLabel(row.role),
+    status: row.isActive ? "Active" : "Inactive",
+    active: row.activeTaskCount,
+    completed: row.completedTaskCount,
+    progress: row.progressPercent ?? 0,
+    workloadStatus: row.workloadStatus,
+    weekly: [],
+    updatedAt: row.updatedAt,
+    department: row.department,
+  };
+}
+
+export default function ManagementEmployees({
+  initialRows,
+}: {
+  initialRows: EmployeeDirectoryRow[];
+}) {
+  const [members, setMembers] = useState(() => initialRows.map(mapRow));
   const [query, setQuery] = useState("");
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState<Draft>(emptyDraft);
@@ -128,29 +114,27 @@ export default function ManagementEmployees() {
     setIsAdding(true);
   }
 
-  function addEmployee() {
+  async function addEmployee() {
     if (!draft.name.trim() || !draft.email.trim()) {
       return;
     }
 
-    setMembers((current) => [
-      ...current,
-      {
-        id: Date.now(),
-        ...draft,
-        name: draft.name.trim(),
-        email: draft.email.trim(),
-        active: 0,
-        completed: 0,
-        progress: 0,
-        workloadStatus: "On Track",
-        weekly: [0, 0, 0, 0, 0],
-      },
-    ]);
-    setIsAdding(false);
+    const role = draft.role === "Graphic Designer" ? "graphic_designer"
+      : draft.role === "Video Editor" ? "video_editor"
+        : draft.role === "HR" ? "hr" : "manager";
+    const department = role === "graphic_designer" ? "graphic_design"
+      : role === "video_editor" ? "video_editing" : null;
+    const result = await inviteEmployeeAction({
+      email: draft.email,
+      fullName: draft.name,
+      role,
+      department,
+      managerId: null,
+    });
+    if (result.ok) setIsAdding(false);
   }
 
-  function openEmployee(memberId: number) {
+  function openEmployee(memberId: string) {
     setSelectedId(memberId);
     setIsEditing(false);
   }
@@ -174,35 +158,61 @@ export default function ManagementEmployees() {
     setIsEditing(true);
   }
 
-  function saveEmployee() {
+  async function saveEmployee() {
     if (!selected || !draft.name.trim() || !draft.email.trim()) {
       return;
     }
 
-    setMembers((current) =>
-      current.map((member) =>
-        member.id === selected.id
-          ? {
-              ...member,
-              ...draft,
-              name: draft.name.trim(),
-              email: draft.email.trim(),
-            }
-          : member,
-      ),
-    );
-    setIsEditing(false);
+    const detail = await getEmployeeDetailAction({ profileId: selected.id });
+    if (!detail.ok) return;
+    const role = draft.role === "Graphic Designer" ? "graphic_designer"
+      : draft.role === "Video Editor" ? "video_editor"
+        : draft.role === "HR" ? "hr" : "manager";
+    const department = role === "graphic_designer" ? "graphic_design"
+      : role === "video_editor" ? "video_editing" : null;
+    const result = await updateManagedEmployeeAction({
+      profileId: detail.data.id,
+      fullName: draft.name,
+      avatarUrl: detail.data.avatarUrl,
+      phone: detail.data.phone,
+      timezone: detail.data.timezone,
+      role,
+      department,
+      isActive: draft.status === "Active",
+      managerId: detail.data.managerId,
+      expectedUpdatedAt: detail.data.updatedAt,
+    });
+    if (result.ok) {
+      setMembers((current) => current.map((member) =>
+        member.id === selected.id ? mapRow(result.data) : member));
+      setIsEditing(false);
+    }
   }
 
-  function deleteEmployee() {
+  async function deleteEmployee() {
     if (!selected) {
       return;
     }
 
-    setMembers((current) =>
-      current.filter((member) => member.id !== selected.id),
-    );
-    closeEmployee();
+    const detail = await getEmployeeDetailAction({ profileId: selected.id });
+    if (!detail.ok) return;
+    const result = await updateManagedEmployeeAction({
+      profileId: detail.data.id,
+      fullName: detail.data.fullName,
+      avatarUrl: detail.data.avatarUrl,
+      phone: detail.data.phone,
+      timezone: detail.data.timezone,
+      role: detail.data.role,
+      department: detail.data.department,
+      isActive: false,
+      managerId: detail.data.managerId,
+      expectedUpdatedAt: detail.data.updatedAt,
+    });
+    if (result.ok) {
+      setMembers((current) => current.map((member) =>
+        member.id === selected.id ? mapRow(result.data) : member));
+      closeEmployee();
+    }
   }
 
   const fields = (

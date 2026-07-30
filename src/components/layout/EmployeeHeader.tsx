@@ -2,11 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import {
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   Bell,
@@ -18,9 +14,9 @@ import {
   X,
 } from "lucide-react";
 
-import { defaultEmployee } from "@/config/employee";
 import { logout } from "@/app/auth/actions";
-import { createClient } from "@/lib/supabase/client";
+import { getUnreadNotificationCountAction } from "@/app/notifications/actions";
+import { useEmployee } from "@/context/EmployeeContext";
 
 import { employeeNavigation } from "@/config/employeeNavigation";
 import { managementNavigation } from "@/config/managementNavigation";
@@ -37,49 +33,17 @@ type EmployeeHeaderProps = {
   workspaceLabel?: string;
 };
 
-const roleLabels: Record<string, string> = {
-  graphic_designer: "Graphic Designer",
-  video_editor: "Video Editor",
-  hr: "HR",
-  manager: "Manager",
-};
-
-function createInitials(name: string) {
-  const words = name
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
-
-  if (words.length === 0) {
-    return "EP";
-  }
-
-  if (words.length === 1) {
-    return words[0]
-      .slice(0, 2)
-      .toUpperCase();
-  }
-
-  return `${words[0][0]}${
-    words[words.length - 1][0]
-  }`.toUpperCase();
-}
-
 export default function EmployeeHeader({
-  employee = defaultEmployee,
+  employee,
   variant = "employee",
   workspaceLabel = "Creative operations workspace",
 }: EmployeeHeaderProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const contextEmployee = useEmployee().employee;
   const navigation = variant === "management" ? managementNavigation : employeeNavigation;
-
-  const [
-    currentEmployee,
-    setCurrentEmployee,
-  ] = useState<HeaderEmployee>(
-    employee,
-  );
+  const currentEmployee: HeaderEmployee = employee ?? contextEmployee;
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const [
     isSigningOut,
@@ -112,88 +76,6 @@ export default function EmployeeHeader({
 
     return pathname.startsWith(href);
   }
-
-  useEffect(() => {
-    let isMounted = true;
-
-    async function loadCurrentProfile() {
-      const supabase = createClient();
-
-      const {
-        data: userData,
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      const user = userData.user;
-
-      if (
-        userError ||
-        !user ||
-        !isMounted
-      ) {
-        return;
-      }
-
-      const {
-        data: profile,
-        error: profileError,
-      } = await supabase
-        .from("profiles")
-        .select("full_name, role")
-        .eq("id", user.id)
-        .single();
-
-      if (
-        profileError ||
-        !profile ||
-        !isMounted
-      ) {
-        return;
-      }
-
-      const profileName =
-        typeof profile.full_name ===
-        "string"
-          ? profile.full_name.trim()
-          : "";
-
-      const metadataName =
-        typeof user.user_metadata
-          ?.full_name === "string"
-          ? user.user_metadata.full_name.trim()
-          : "";
-
-      const emailName =
-        user.email
-          ?.split("@")[0]
-          ?.trim() ?? "";
-
-      const name =
-        profileName ||
-        metadataName ||
-        emailName ||
-        "Employee";
-
-      const databaseRole =
-        typeof profile.role === "string"
-          ? profile.role
-          : "";
-
-      setCurrentEmployee({
-        name,
-        initials: createInitials(name),
-        role:
-          roleLabels[databaseRole] ??
-          "Employee",
-      });
-    }
-
-    void loadCurrentProfile();
-
-  return () => {
-      isMounted = false;
-    };
-  }, []);
 
   async function handleSignOut() {
     if (isSigningOut) {
@@ -244,6 +126,16 @@ export default function EmployeeHeader({
       );
     };
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    void getUnreadNotificationCountAction().then((result) => {
+      if (active && result.ok) setUnreadCount(result.data);
+    });
+    return () => {
+      active = false;
+    };
+  }, [pathname]);
 
   return (
     <>
@@ -319,7 +211,11 @@ export default function EmployeeHeader({
 >
   <Bell size={18} />
 
-  <span className="absolute right-2 top-2 size-2 rounded-full bg-red-500 ring-2 ring-white" />
+  {unreadCount > 0 ? (
+    <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-red-500 px-1 text-center text-[10px] font-bold leading-5 text-white ring-2 ring-white">
+      {unreadCount > 99 ? "99+" : unreadCount}
+    </span>
+  ) : null}
 </Link>
 
 

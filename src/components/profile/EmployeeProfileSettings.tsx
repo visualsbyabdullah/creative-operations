@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 
 import {
   Bell,
@@ -19,10 +19,12 @@ import {
 } from "lucide-react";
 
 import EmployeeHeader from "@/components/layout/EmployeeHeader";
+import type { SelfProfile } from "@/lib/profiles/profile-types";
+import { updateOwnProfileAction } from "@/app/profile/actions";
 import {
-  employeeProfiles,
-  type EmployeeDepartment,
-} from "@/config/employee";
+  removeAvatarAction,
+  uploadAvatarAction,
+} from "@/app/profile/avatar-actions";
 
 type NotificationSettings = {
   newTaskAssignments: boolean;
@@ -105,41 +107,30 @@ function SettingsRow({
   );
 }
 
-export default function EmployeeProfileSettings() {
-  const selectedDepartment: EmployeeDepartment = "Graphic Design";
-
-  const employee =
-    employeeProfiles[selectedDepartment];
-
+export default function EmployeeProfileSettings({ profile }: { profile: SelfProfile }) {
+  const initials = profile.fullName.split(/\s+/u).map((word) => word[0]).join("").slice(0,2).toUpperCase();
+  const roleLabel = profile.role === "graphic_designer" ? "Graphic Designer" : "Video Editor";
   const [profileForm, setProfileForm] =
     useState({
-      fullName: employee.name,
-      email:
-        selectedDepartment ===
-        "Graphic Design"
-          ? "abdullah@creativeops.com"
-          : "hamza@creativeops.com",
-      phone: "+92 300 1234567",
-      location: "Islamabad, Pakistan",
-      workingHours: "9:00 AM - 6:00 PM",
-      bio:
-        selectedDepartment ===
-        "Graphic Design"
-          ? "Graphic designer focused on social media campaigns, brand identities and digital marketing creatives."
-          : "Video editor focused on reels, product explainers, commercial edits and social media content.",
+      fullName: profile.fullName,
+      email: profile.email,
+      phone: profile.phone ?? "",
+      location: "Unavailable",
+      workingHours: "Unavailable",
+      bio: "Profile biography is not available in this release.",
     });
 
   const [
     notificationSettings,
     setNotificationSettings,
   ] = useState<NotificationSettings>({
-    newTaskAssignments: true,
-    deadlineReminders: true,
-    revisionRequests: true,
-    approvalUpdates: true,
-    publishingUpdates: true,
-    emailNotifications: true,
-    inAppNotifications: true,
+    newTaskAssignments: profile.preferences.newTaskAssignments,
+    deadlineReminders: profile.preferences.deadlineReminders,
+    revisionRequests: profile.preferences.revisionRequests,
+    approvalUpdates: profile.preferences.approvalUpdates,
+    publishingUpdates: profile.preferences.publishingUpdates,
+    emailNotifications: profile.preferences.emailEnabled,
+    inAppNotifications: profile.preferences.inAppEnabled,
   });
 
   const [passwordForm, setPasswordForm] =
@@ -151,6 +142,40 @@ export default function EmployeeProfileSettings() {
 
   const [saveMessage, setSaveMessage] =
     useState("");
+  const [avatarPending,startAvatarTransition]=useTransition();
+
+  function uploadAvatar(file:File|null){
+    if(!file||avatarPending)return;
+    const formData=new FormData();
+    formData.set("file",file);
+    formData.set("expectedUpdatedAt",profile.updatedAt);
+    startAvatarTransition(async()=>{
+      const result=await uploadAvatarAction(formData);
+      if(!result.ok){
+        setSaveMessage(result.code==="validation_failed"
+          ?"Choose a JPEG, PNG, or WebP image up to 5 MB."
+          : result.code==="stale_update"
+            ?"Your profile changed elsewhere. Reload before uploading."
+            :"Avatar upload could not be completed.");
+        return;
+      }
+      window.location.reload();
+    });
+  }
+
+  function removeAvatar(){
+    if(avatarPending||!profile.avatarPath)return;
+    startAvatarTransition(async()=>{
+      const result=await removeAvatarAction(profile.updatedAt);
+      if(!result.ok){
+        setSaveMessage(result.code==="stale_update"
+          ?"Your profile changed elsewhere. Reload before removing the avatar."
+          :"Avatar removal could not be completed.");
+        return;
+      }
+      window.location.reload();
+    });
+  }
 
   function updateNotificationSetting(
     key: keyof NotificationSettings,
@@ -164,10 +189,30 @@ export default function EmployeeProfileSettings() {
     );
   }
 
-  function saveProfile() {
-    setSaveMessage(
-      "Profile settings successfully saved.",
-    );
+  async function saveProfile() {
+    const result = await updateOwnProfileAction({
+      fullName: profileForm.fullName,
+      avatarUrl: null,
+      phone: profileForm.phone || null,
+      timezone: profile.timezone,
+      preferences: {
+        newTaskAssignments: notificationSettings.newTaskAssignments,
+        deadlineReminders: notificationSettings.deadlineReminders,
+        revisionRequests: notificationSettings.revisionRequests,
+        approvalUpdates: notificationSettings.approvalUpdates,
+        publishingUpdates: notificationSettings.publishingUpdates,
+        emailEnabled: notificationSettings.emailNotifications,
+        inAppEnabled: notificationSettings.inAppNotifications,
+      },
+      expectedUpdatedAt: profile.updatedAt,
+    });
+    setSaveMessage(result.ok
+      ? "Profile settings successfully saved."
+      : result.code === "stale_update"
+        ? "This profile changed elsewhere. Reload before saving again."
+        : result.code === "rate_limited"
+          ? "Too many save attempts. Please try again later."
+          : "Profile settings could not be saved.");
 
     window.setTimeout(() => {
       setSaveMessage("");
@@ -216,7 +261,7 @@ export default function EmployeeProfileSettings() {
   return (
     <main className="min-h-screen bg-[#e7ebf2] p-3 sm:p-6 xl:p-10">
       <section className="mx-auto w-full max-w-[1600px] overflow-hidden rounded-[26px] border border-white/80 bg-[#fbfcfe] shadow-[0_30px_80px_rgba(50,63,86,0.10)]">
-        <EmployeeHeader employee={employee} />
+        <EmployeeHeader employee={{ initials, name: profile.fullName, role: roleLabel }} />
 
         <div className="px-4 py-7 sm:px-6 sm:py-8">
           <section className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
@@ -250,25 +295,45 @@ export default function EmployeeProfileSettings() {
             <aside className="space-y-5">
               <article className="rounded-[24px] border border-[#edf0f5] bg-white p-5 text-center shadow-[0_12px_35px_rgba(24,39,75,0.035)]">
                 <div className="relative mx-auto w-fit">
-                  <div className="grid size-24 place-items-center rounded-full bg-[#1d2430] text-2xl font-bold text-white">
-                    {employee.initials}
+                  <div
+                    className="grid size-24 place-items-center rounded-full bg-cover bg-center bg-[#1d2430] text-2xl font-bold text-white"
+                    style={profile.avatarUrl?{backgroundImage:`url("${profile.avatarUrl}")`}:undefined}
+                  >
+                    {profile.avatarUrl?null:initials}
                   </div>
 
-                  <button
-                    type="button"
-                    aria-label="Change profile picture"
-                    className="absolute bottom-0 right-0 grid size-9 place-items-center rounded-full border-4 border-white bg-[#2f80ed] text-white"
+                  <label
+                    title="Upload a private JPEG, PNG, or WebP avatar up to 5 MB."
+                    aria-label="Upload avatar"
+                    className="absolute bottom-0 right-0 grid size-9 cursor-pointer place-items-center rounded-full border-4 border-white bg-[#2f80ed] text-white"
                   >
                     <Camera size={14} />
-                  </button>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      disabled={avatarPending}
+                      onChange={(event)=>uploadAvatar(event.target.files?.[0]??null)}
+                      className="sr-only"
+                    />
+                  </label>
                 </div>
+                {profile.avatarPath ? (
+                  <button
+                    type="button"
+                    onClick={removeAvatar}
+                    disabled={avatarPending}
+                    className="mt-3 text-xs font-bold text-red-600 disabled:opacity-40"
+                  >
+                    {avatarPending?"Updating avatar...":"Remove avatar"}
+                  </button>
+                ) : null}
 
                 <h2 className="mt-4 text-xl font-bold tracking-[-0.03em]">
                   {profileForm.fullName}
                 </h2>
 
                 <p className="mt-1 text-xs font-semibold text-[#2f80ed]">
-                  {employee.role}
+                  {roleLabel}
                 </p>
 
                 <p className="mt-2 text-xs text-[#9299a4]">
@@ -293,7 +358,7 @@ export default function EmployeeProfileSettings() {
                     </span>
 
                     <span className="font-bold">
-                      {employee.id}
+                      {profile.id}
                     </span>
                   </div>
                 </div>
@@ -417,15 +482,7 @@ export default function EmployeeProfileSettings() {
                       <input
                         type="email"
                         value={profileForm.email}
-                        onChange={(event) =>
-                          setProfileForm(
-                            (current) => ({
-                              ...current,
-                              email:
-                                event.target.value,
-                            }),
-                          )
-                        }
+                        readOnly
                         className="h-12 w-full bg-transparent text-sm outline-none"
                       />
                     </div>
@@ -471,15 +528,7 @@ export default function EmployeeProfileSettings() {
 
                       <input
                         value={profileForm.location}
-                        onChange={(event) =>
-                          setProfileForm(
-                            (current) => ({
-                              ...current,
-                              location:
-                                event.target.value,
-                            }),
-                          )
-                        }
+                        readOnly
                         className="h-12 w-full bg-transparent text-sm outline-none"
                       />
                     </div>
@@ -493,15 +542,7 @@ export default function EmployeeProfileSettings() {
                     <textarea
                       rows={4}
                       value={profileForm.bio}
-                      onChange={(event) =>
-                        setProfileForm(
-                          (current) => ({
-                            ...current,
-                            bio:
-                              event.target.value,
-                          }),
-                        )
-                      }
+                      readOnly
                       className="mt-2 w-full resize-none rounded-2xl border border-[#e5e9ef] p-4 text-sm leading-6 outline-none focus:border-[#2f80ed]"
                     />
                   </label>
@@ -793,5 +834,3 @@ export default function EmployeeProfileSettings() {
     </main>
   );
 }
-
-

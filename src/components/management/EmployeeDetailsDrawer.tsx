@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil, Trash2, X } from "lucide-react";
+import { Pencil, UserX, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 
@@ -15,7 +15,7 @@ export type EmployeeDrawerData = {
   completed: number;
   progress: number;
   workloadStatus: "On Track" | "Review Pending" | "Delayed";
-  weekly: number[];
+  weekly?: number[];
 };
 
 type EmployeeDetailsDrawerProps = {
@@ -165,6 +165,7 @@ export default function EmployeeDetailsDrawer({
                   </p>
                 </div>
 
+                {employee.weekly?.length ? (
                 <div className="mt-5 flex h-44 items-end justify-between gap-3">
                   {employee.weekly.map((value, index) => (
                     <div
@@ -190,6 +191,14 @@ export default function EmployeeDetailsDrawer({
                     </div>
                   ))}
                 </div>
+                ) : (
+                  <div className="mt-5 rounded-2xl border border-dashed border-[#dfe5ed] bg-[#f8fafc] p-6 text-center">
+                    <p className="text-xs font-bold text-[#626b77]">Historical activity unavailable</p>
+                    <p className="mt-1 text-[10px] leading-5 text-[#9299a4]">
+                      Complete employee-by-day task snapshots are not recorded.
+                    </p>
+                  </div>
+                )}
               </section>
 
               <section className="rounded-[20px] border border-[#edf0f5] p-5">
@@ -284,8 +293,8 @@ export default function EmployeeDetailsDrawer({
                   onClick={onDelete}
                   className="flex items-center justify-center gap-2 rounded-full border border-red-100 bg-red-50 px-5 py-3 text-xs font-bold text-red-600"
                 >
-                  <Trash2 size={14} />
-                  Delete Employee
+                  <UserX size={14} />
+                  Deactivate Employee
                 </button>
               ) : null}
             </div>

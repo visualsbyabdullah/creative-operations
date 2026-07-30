@@ -5,7 +5,7 @@ import SystemTable from "@/components/ui/SystemTable";
 import EmployeeHeader from "@/components/layout/EmployeeHeader";
 import PillSelect from "@/components/ui/PillSelect";
 import { useEmployee } from "@/context/EmployeeContext";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CalendarDays,
   Check,
@@ -21,6 +21,14 @@ import {
   Upload,
   X,
 } from "lucide-react";
+import type { TaskView } from "@/lib/tasks/task-types";
+import { submitTaskAction, transitionTaskAction } from "@/app/tasks/actions";
+import {
+  listAttachmentsAction,
+  removeAttachmentAction,
+  uploadAttachmentAction,
+} from "@/app/attachments/actions";
+import type { AttachmentView } from "@/lib/storage/storage-service";
 
 type Department = "Graphic Design" | "Video Editing";
 
@@ -50,7 +58,7 @@ type Platform =
   | "YouTube";
 
 type CreativeTask = {
-  id: number;
+  id: number | string;
   brand: string;
   title: string;
   department: Department;
@@ -67,6 +75,8 @@ type CreativeTask = {
   publishedLink?: string;
   delayReason?: string;
   feedback?: string;
+  canonicalStatus?: TaskView["status"];
+  updatedAt?: string;
 };
 
 type StatusFilter = "All Statuses" | TaskStatus;
@@ -389,25 +399,50 @@ function ProgressMeter({
   );
 }
 
-export default function MyTasks() {
+export default function MyTasks({ backendTasks }: { backendTasks?: TaskView[] }) {
   const {
     department,
     employee,
   } = useEmployee();
 
   const departmentTasks = useMemo(
-    () =>
-      initialTasks.filter(
+    () => {
+      if (backendTasks !== undefined) {
+        return backendTasks.map((task) => ({
+          id: task.id,
+          brand: task.brandName,
+          title: task.title,
+          department: task.department === "video_editing" ? "Video Editing" as const : "Graphic Design" as const,
+          contentType: task.contentType,
+          platforms: [] as Platform[],
+          day: new Date(task.deadlineAt).toLocaleDateString("en-US", { weekday: "long" }) as WeekDay,
+          deadline: new Date(task.deadlineAt).toLocaleString(),
+          status: task.status === "in_progress" ? "In Progress" as const
+            : task.status === "submitted" ? "In Review" as const
+              : task.status === "revision_requested" ? "Revision Required" as const
+                : task.status === "completed" ? "Published" as const : "Not Started" as const,
+          priority: `${task.priority[0].toUpperCase()}${task.priority.slice(1)}` as Priority,
+          assignedBy: "Management",
+          description: task.description,
+          referenceLink: task.referenceUrl ?? undefined,
+          delayReason: task.delayReason ?? undefined,
+          canonicalStatus: task.status,
+          updatedAt: task.updatedAt,
+        }));
+      }
+      return initialTasks.filter(
         (task) =>
           task.department === department,
-      ),
-    [department],
+      );
+    },
+    [backendTasks, department],
   );
 
   const [tasks, setTasks] =
     useState<CreativeTask[]>(departmentTasks);
 const [selectedTaskId, setSelectedTaskId] =
-    useState<number | null>(null);
+    useState<number | string | null>(null);
+  const submissionKeys = useRef(new Map<string, string>());
 
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -418,6 +453,11 @@ const [selectedTaskId, setSelectedTaskId] =
     useState<DayFilter>("All Days");
 
   const [submissionLink, setSubmissionLink] = useState("");
+  const [submissionFile,setSubmissionFile]=useState<File|null>(null);
+  const [submissionMessage,setSubmissionMessage]=useState("");
+  const [taskFile,setTaskFile]=useState<File|null>(null);
+  const [taskAttachmentMessage,setTaskAttachmentMessage]=useState("");
+  const [taskAttachments,setTaskAttachments]=useState<AttachmentView[]>([]);
 
   const [publishedLink, setPublishedLink] = useState("");
 
@@ -516,11 +556,19 @@ const [selectedTaskId, setSelectedTaskId] =
     setPublishedLink(task.publishedLink ?? "");
     setDelayReason(task.delayReason ?? "");
     setShowDelayForm(task.status === "Delayed");
+    setTaskAttachments([]);
+    void listAttachmentsAction("task",String(task.id)).then((result)=>{
+      if(result.ok)setTaskAttachments(result.data);
+    });
   }
 
   function closeDrawer() {
     setSelectedTaskId(null);
     setSubmissionLink("");
+    setSubmissionFile(null);
+    setSubmissionMessage("");
+    setTaskFile(null);
+    setTaskAttachmentMessage("");
     setPublishedLink("");
     setDelayReason("");
     setShowDelayForm(false);
@@ -545,18 +593,24 @@ const [selectedTaskId, setSelectedTaskId] =
     );
   }
 
-  function handleStatusChange(status: TaskStatus) {
-    if (status === "Delayed") {
-      setShowDelayForm(true);
-      return;
-    }
-
-    setShowDelayForm(false);
-
-    updateSelectedTask({
-      status,
-      delayReason: undefined,
+  async function handleStatusChange(status: TaskStatus) {
+    if (!selectedTask?.canonicalStatus || !selectedTask.updatedAt) return;
+    const target = status === "In Progress" &&
+      selectedTask.canonicalStatus === "assigned"
+      ? ["assigned","in_progress"]
+      : status === "In Progress" &&
+        selectedTask.canonicalStatus === "revision_requested"
+        ? ["revision_requested","in_progress"] : null;
+    if (!target) return;
+    const result = await transitionTaskAction({
+      taskId: String(selectedTask.id),
+      expectedFrom: target[0],
+      toStatus: target[1],
+      reason: null,
     });
+    if (result.ok) {
+      updateSelectedTask({ status: "In Progress", canonicalStatus: "in_progress" });
+    }
   }
 
   function saveDelay() {
@@ -572,26 +626,70 @@ const [selectedTaskId, setSelectedTaskId] =
     setShowDelayForm(false);
   }
 
-  function saveSubmission() {
-    if (!submissionLink.trim()) {
+  async function saveSubmission() {
+    if (!submissionLink.trim() || !selectedTask?.updatedAt ||
+      selectedTask.canonicalStatus !== "in_progress") {
       return;
     }
-
-    updateSelectedTask({
-      submissionLink: submissionLink.trim(),
-      status: "In Review",
+    const taskId = String(selectedTask.id);
+    let key = submissionKeys.current.get(taskId);
+    if (!key) {
+      key = crypto.randomUUID();
+      submissionKeys.current.set(taskId, key);
+    }
+    const result = await submitTaskAction({
+      taskId,
+      expectedUpdatedAt: selectedTask.updatedAt,
+      idempotencyKey: key,
+      type: selectedTask.department === "Video Editing" ? "video" : "design",
+      sourceUrl: null,
+      finalUrl: submissionLink.trim(),
+      notes: "",
     });
+    if (result.ok) {
+      if(submissionFile){
+        const formData=new FormData();
+        formData.set("file",submissionFile);
+        formData.set("parentType","submission");
+        formData.set("parentId",result.data.submissionId);
+        const attachment=await uploadAttachmentAction(formData);
+        setSubmissionMessage(attachment.ok
+          ?"Submission and private attachment uploaded."
+          :"Submission succeeded, but the attachment upload failed. You may retry from submission history.");
+      }else{
+        setSubmissionMessage("Submission sent for review.");
+      }
+      updateSelectedTask({
+        submissionLink: submissionLink.trim(),
+        status: "In Review",
+        canonicalStatus: "submitted",
+      });
+    }
   }
 
-  function savePublishedLink() {
-    if (!publishedLink.trim()) {
-      return;
+  async function uploadTaskAttachment(){
+    if(!selectedTask||!taskFile)return;
+    const formData=new FormData();
+    formData.set("file",taskFile);
+    formData.set("parentType","task");
+    formData.set("parentId",String(selectedTask.id));
+    const result=await uploadAttachmentAction(formData);
+    setTaskAttachmentMessage(result.ok
+      ?"Private task attachment uploaded."
+      : result.code==="validation_failed"
+        ?"The selected file type, extension, or size is not allowed."
+        :"Task attachment upload was not authorized or is temporarily unavailable.");
+    if(result.ok)setTaskFile(null);
+    if(result.ok){
+      const refreshed=await listAttachmentsAction("task",String(selectedTask.id));
+      if(refreshed.ok)setTaskAttachments(refreshed.data);
     }
+  }
 
-    updateSelectedTask({
-      publishedLink: publishedLink.trim(),
-      status: "Published",
-    });
+  async function removeTaskAttachment(id:string){
+    const result=await removeAttachmentAction(id,"task");
+    if(result.ok)setTaskAttachments((current)=>current.filter((item)=>item.id!==id));
+    else setTaskAttachmentMessage("Attachment removal could not be completed.");
   }
 
   return (
@@ -1100,7 +1198,12 @@ const [selectedTaskId, setSelectedTaskId] =
 
                 <PillSelect<TaskStatus>
                   value={selectedTask.status}
-                  options={statuses.map(
+                  options={(
+                    selectedTask.canonicalStatus === "assigned" ||
+                    selectedTask.canonicalStatus === "revision_requested"
+                      ? [selectedTask.status, "In Progress" as TaskStatus]
+                      : [selectedTask.status]
+                  ).filter((value, index, items) => items.indexOf(value) === index).map(
                     (status) => ({
                       label: status,
                       value: status,
@@ -1169,6 +1272,45 @@ const [selectedTaskId, setSelectedTaskId] =
               ) : null}
 
               <section className="rounded-[22px] border border-[#e7ebf0] p-4">
+                <p className="text-xs font-bold">Task attachment</p>
+                <p className="mt-1 text-[10px] text-[#9299a4]">
+                  Private files are available only to assigned staff and workspace management.
+                </p>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,application/pdf,text/plain,.docx,.xlsx"
+                  disabled={!["assigned","in_progress","revision_requested"].includes(selectedTask.canonicalStatus??"")}
+                  onChange={(event)=>setTaskFile(event.target.files?.[0]??null)}
+                  className="mt-3 block w-full text-xs disabled:opacity-40"
+                />
+                <button
+                  type="button"
+                  onClick={uploadTaskAttachment}
+                  disabled={!taskFile}
+                  className="mt-3 rounded-full border border-[#dfe5ed] px-4 py-2 text-xs font-bold disabled:opacity-40"
+                >
+                  Upload privately
+                </button>
+                {taskAttachmentMessage?(
+                  <p role="status" className="mt-2 text-xs text-[#626a75]">{taskAttachmentMessage}</p>
+                ):null}
+                {taskAttachments.length>0?(
+                  <div className="mt-3 space-y-2">
+                    {taskAttachments.map((attachment)=>(
+                      <div key={attachment.id} className="flex items-center justify-between rounded-xl bg-[#f7f9fc] p-3">
+                        <a href={attachment.url} target="_blank" rel="noreferrer" className="truncate text-xs font-bold text-[#2f80ed]">
+                          {attachment.name}
+                        </a>
+                        <button type="button" onClick={()=>removeTaskAttachment(attachment.id)} className="ml-3 text-[10px] font-bold text-red-600">
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ):null}
+              </section>
+
+              <section className="rounded-[22px] border border-[#e7ebf0] p-4">
                 <div className="flex items-center gap-3">
                   <div className="grid size-10 place-items-center rounded-xl bg-[#edf5ff] text-[#2f80ed]">
                     <Upload size={17} />
@@ -1196,6 +1338,25 @@ const [selectedTaskId, setSelectedTaskId] =
                   placeholder="Paste submission link"
                   className="mt-4 w-full rounded-2xl border border-[#e2e7ed] px-4 py-3 text-sm outline-none focus:border-[#2f80ed]"
                 />
+
+                <label className="mt-3 block rounded-2xl border border-dashed border-[#d5dce5] p-4 text-xs font-semibold text-[#626a75]">
+                  Optional private attachment
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,application/pdf,video/mp4,video/webm,.docx"
+                    onChange={(event)=>setSubmissionFile(event.target.files?.[0]??null)}
+                    className="mt-2 block w-full text-xs"
+                  />
+                  <span className="mt-2 block text-[10px] font-normal text-[#9299a4]">
+                    Validated server-side; maximum 25 MB.
+                  </span>
+                </label>
+
+                {submissionMessage?(
+                  <p role="status" className="mt-3 text-xs font-semibold text-[#4f5762]">
+                    {submissionMessage}
+                  </p>
+                ):null}
 
                 <button
                   type="button"
@@ -1229,20 +1390,18 @@ const [selectedTaskId, setSelectedTaskId] =
                 <input
                   type="url"
                   value={publishedLink}
-                  onChange={(event) =>
-                    setPublishedLink(event.target.value)
-                  }
-                  placeholder="Paste published post or reel link"
+                  readOnly
+                  placeholder="Publishing is completed by management after review."
                   className="mt-4 w-full rounded-2xl border border-[#e2e7ed] px-4 py-3 text-sm outline-none focus:border-[#2f80ed]"
                 />
 
                 <button
                   type="button"
-                  onClick={savePublishedLink}
-                  disabled={!publishedLink.trim()}
+                  disabled
+                  title="Only Manager or HR can publish an approved submission."
                   className="mt-3 w-full rounded-full bg-emerald-600 px-5 py-3 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  Mark as Published
+                  Management publishing only
                 </button>
               </section>
 
@@ -1285,13 +1444,5 @@ const [selectedTaskId, setSelectedTaskId] =
     </main>
   );
 }
-
-
-
-
-
-
-
-
 
 

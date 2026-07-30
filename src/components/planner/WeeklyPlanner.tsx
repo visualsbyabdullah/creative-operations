@@ -2,7 +2,8 @@
 
 import EmployeeHeader from "@/components/layout/EmployeeHeader";
 import PillSelect from "@/components/ui/PillSelect";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   CalendarDays,
   Check,
@@ -22,6 +23,8 @@ import {
   Users,
   X,
 } from "lucide-react";
+import type { AssigneeOption, TaskOption, TaskView } from "@/lib/tasks/task-types";
+import { createTaskAction, editTaskAction, transitionTaskAction } from "@/app/tasks/actions";
 
 type Department = "Graphic Design" | "Video Editing";
 
@@ -41,7 +44,7 @@ type Platform =
   | "YouTube";
 
 type PlannerTask = {
-  id: number;
+  id: number | string;
   title: string;
   brand: string;
   department: Department;
@@ -53,6 +56,11 @@ type PlannerTask = {
   status: TaskStatus;
   link?: string;
   delayReason?: string;
+  brandId?: string;
+  assigneeIds?: string[];
+  updatedAt?: string;
+  deadlineAt?: string;
+  canonicalStatus?: TaskView["status"];
 };
 
 type WeekDay = "Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday";
@@ -113,10 +121,6 @@ const plannerStatusOptions: { label: string; value: StatusFilter }[] = [
   ...(Object.keys(statusStyles) as TaskStatus[]).map((value) => ({ label: value, value })),
 ];
 
-const plannerAssigneeOptions: { label: string; value: AssigneeFilter }[] = [
-  { label: "All Assignees", value: "All Assignees" },
-  ...Object.values(teamMembers).flat().map((value) => ({ label: value, value })),
-];
 const initialTasks: PlannerTask[] = [
   {
     id: 1,
@@ -259,38 +263,108 @@ function PlatformBadge({ platform }: { platform: Platform }) {
   );
 }
 
-export default function WeeklyPlanner() {
-  const [tasks, setTasks] = useState<PlannerTask[]>(initialTasks);
+function mapBackendTask(task: TaskView): PlannerTask {
+  const date = new Date(task.deadlineAt);
+  const day = date.toLocaleDateString("en-US", { weekday: "long" }) as WeekDay;
+  const status: TaskStatus = task.status === "in_progress" ? "In Progress"
+    : task.status === "submitted" ? "In Review"
+      : task.status === "revision_requested" ? "Delayed"
+        : task.status === "completed" ? "Published" : "Not Started";
+  return {
+    id: task.id, title: task.title, brand: task.brandName,
+    department: task.department === "video_editing" ? "Video Editing" : "Graphic Design",
+    contentType: task.contentType, platform: [],
+    assignee: task.assigneeNames.join(", ") || "Unassigned",
+    day: weekDays.includes(day) ? day : "Monday",
+    time: date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }),
+    status, link: task.referenceUrl ?? undefined, delayReason: task.delayReason ?? undefined,
+    brandId: task.brandId, assigneeIds: task.assigneeIds,
+    updatedAt: task.updatedAt, deadlineAt: task.deadlineAt,
+    canonicalStatus: task.status,
+  };
+}
+
+export default function WeeklyPlanner({
+  backendTasks,
+  options,
+  weekStart,
+  initialFilters,
+}: {
+  backendTasks?: TaskView[];
+  options?: { brands: TaskOption[]; assignees: AssigneeOption[] };
+  weekStart: string;
+  initialFilters: {
+    search:string;status:string;department:string;assigneeId:string|null;
+  };
+}) {
+  const router = useRouter();
+  const [queryPending,startQueryTransition]=useTransition();
+  const plannerBrands = options?.brands.map((item) => item.name) ?? brands;
+  const plannerTeamMembers = {
+    "Graphic Design": options?.assignees
+      .filter((item) => item.department === "graphic_design").map((item) => item.name)
+      ?? teamMembers["Graphic Design"],
+    "Video Editing": options?.assignees
+      .filter((item) => item.department === "video_editing").map((item) => item.name)
+      ?? teamMembers["Video Editing"],
+  };
+  const activeAssigneeOptions: { label: string; value: AssigneeFilter }[] = [
+    { label: "All Assignees", value: "All Assignees" },
+    ...Object.values(plannerTeamMembers).flat().map((value) => ({ label: value, value })),
+  ];
+  const [tasks, setTasks] = useState<PlannerTask[]>(
+    backendTasks === undefined ? initialTasks : backendTasks.map(mapBackendTask),
+  );
   const [departmentFilter, setDepartmentFilter] =
-    useState<DepartmentFilter>("All Work");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("All Statuses");
-  const [assigneeFilter, setAssigneeFilter] = useState<AssigneeFilter>("All Assignees");
-  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
-  const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
-  const [weekOffset, setWeekOffset] = useState(0);
+    useState<DepartmentFilter>(
+      ["All Work","Graphic Design","Video Editing"].includes(initialFilters.department)
+        ?initialFilters.department as DepartmentFilter:"All Work");
+  const [searchQuery, setSearchQuery] = useState(initialFilters.search);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(
+    plannerStatusOptions.some((item)=>item.value===initialFilters.status)
+      ?initialFilters.status as StatusFilter:"All Statuses");
+  const initialAssignee=options?.assignees.find((item)=>item.id===initialFilters.assigneeId)?.name;
+  const [assigneeFilter, setAssigneeFilter] = useState<AssigneeFilter>(
+    initialAssignee??"All Assignees");
+  const [selectedTaskId, setSelectedTaskId] = useState<number | string | null>(null);
+  const [editingTaskId, setEditingTaskId] = useState<number | string | null>(null);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
-  const [delayTaskId, setDelayTaskId] = useState<number | null>(null);
+  const [delayTaskId, setDelayTaskId] = useState<number | string | null>(null);
   const [delayReason, setDelayReason] = useState("");
 
   const [newTask, setNewTask] = useState({
     title: "",
-    brand: brands[0],
+    brand: plannerBrands[0] ?? "",
     department: "Graphic Design" as Department,
     contentType: contentTypes["Graphic Design"][0],
     platform: "Instagram" as Platform,
-    assignee: teamMembers["Graphic Design"][0],
+    assignee: plannerTeamMembers["Graphic Design"][0] ?? "",
     day: "Monday" as WeekDay,
     time: "10:00",
   });
 
   const selectedTask = tasks.find((task) => task.id === selectedTaskId) ?? null;
   const weekLabel = useMemo(() => {
-    const start = new Date(2026, 6, 20 + weekOffset * 7);
+    const start = new Date(`${weekStart}T00:00:00.000Z`);
     const end = new Date(start);
     end.setDate(start.getDate() + 4);
-    return `${start.getDate()} - ${end.getDate()} ${end.toLocaleString("en-US", { month: "long" })} ${end.getFullYear()}`;
-  }, [weekOffset]);
+    return `${start.getUTCDate()} - ${end.getUTCDate()} ${end.toLocaleString("en-US", { month: "long", timeZone: "UTC" })} ${end.getUTCFullYear()}`;
+  }, [weekStart]);
+
+  function navigateWeek(offset: number) {
+    const date = new Date(`${weekStart}T00:00:00.000Z`);
+    date.setUTCDate(date.getUTCDate() + offset * 7);
+    router.push(`/planner?week=${date.toISOString().slice(0, 10)}`);
+  }
+
+  function updateServerFilter(key:string,value:string|null){
+    const params=new URLSearchParams(window.location.search);
+    if(value&&value!=="All Work"&&value!=="All Statuses"&&value!=="All Assignees"){
+      params.set(key,value);
+    }else params.delete(key);
+    params.delete("cursor");
+    startQueryTransition(()=>router.replace(`/planner?${params.toString()}`));
+  }
 
   const filteredTasks = useMemo(() => {
     return tasks.filter((task) => {
@@ -359,58 +433,55 @@ export default function WeeklyPlanner() {
       ...current,
       department,
       contentType: contentTypes[department][0],
-      assignee: teamMembers[department][0],
+      assignee: plannerTeamMembers[department][0] ?? "",
     }));
   }
 
-  function addTask() {
+  async function addTask() {
     if (!newTask.title.trim()) {
       return;
     }
 
-    const formattedTime = new Date(
-      `2026-01-01T${newTask.time}`,
-    ).toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-    });
-
-    const task: PlannerTask = {
-      id: Date.now(),
-      title: newTask.title.trim(),
-      brand: newTask.brand,
-      department: newTask.department,
+    const brandId = options?.brands.find((item) => item.name === newTask.brand)?.id;
+    const assigneeId = options?.assignees.find((item) => item.name === newTask.assignee)?.id;
+    if (!brandId || !assigneeId) return;
+    const start = new Date(`${weekStart}T00:00:00.000Z`);
+    const dayIndex = weekDays.indexOf(newTask.day);
+    start.setDate(start.getDate() + Math.max(0, dayIndex));
+    const [hours, minutes] = newTask.time.split(":").map(Number);
+    start.setHours(hours, minutes, 0, 0);
+    const selectedBackend = backendTasks?.find((item) => item.id === editingTaskId);
+    const command = {
+      brandId, title: newTask.title, department: newTask.department === "Graphic Design"
+        ? "graphic_design" : "video_editing",
       contentType: newTask.contentType,
-      platform: [newTask.platform],
-      assignee: newTask.assignee,
-      day: newTask.day,
-      time: formattedTime,
-      status: "Not Started",
+      scheduledDate: start.toISOString().slice(0,10),
+      deadlineAt: start.toISOString(), priority: selectedBackend?.priority ?? "medium",
+      description: selectedBackend?.description ?? "", referenceUrl: selectedBackend?.referenceUrl ?? null,
+      assigneeIds: [assigneeId],
     };
-
-    setTasks((currentTasks) =>
-      editingTaskId
-        ? currentTasks.map((currentTask) =>
-            currentTask.id === editingTaskId
-              ? { ...currentTask, ...task, id: currentTask.id }
-              : currentTask,
-          )
-        : [...currentTasks, task],
-    );
+    const result = editingTaskId && selectedBackend
+      ? await editTaskAction({
+          ...command, taskId: selectedBackend.id,
+          expectedUpdatedAt: selectedBackend.updatedAt,
+        })
+      : await createTaskAction(command);
+    if (!result.ok) return;
 
     setNewTask({
       title: "",
-      brand: brands[0],
+      brand: plannerBrands[0] ?? "",
       department: "Graphic Design",
       contentType: contentTypes["Graphic Design"][0],
       platform: "Instagram",
-      assignee: teamMembers["Graphic Design"][0],
+      assignee: plannerTeamMembers["Graphic Design"][0] ?? "",
       day: "Monday",
       time: "10:00",
     });
 
     setEditingTaskId(null);
     setIsTaskModalOpen(false);
+    router.refresh();
   }
 
   return (
@@ -437,7 +508,7 @@ export default function WeeklyPlanner() {
             <div className="flex flex-wrap items-center gap-2">
               <button
   type="button"
-  onClick={() => setWeekOffset((current) => current - 1)}
+  onClick={() => navigateWeek(-1)}
   aria-label="Show previous week"
   className="grid size-10 place-items-center rounded-full border border-[#e8ebf0] bg-white transition hover:border-[#2f80ed] hover:text-[#2f80ed]"
 >
@@ -446,7 +517,7 @@ export default function WeeklyPlanner() {
 
               <button
   type="button"
-  onClick={() => setWeekOffset(0)}
+  onClick={() => router.push("/planner")}
   aria-label="Return to current planning week"
   className="flex items-center gap-2 rounded-full border border-[#e8ebf0] bg-white px-4 py-2.5 text-xs font-bold transition hover:border-[#2f80ed] hover:text-[#2f80ed]"
 >
@@ -455,7 +526,7 @@ export default function WeeklyPlanner() {
 
               <button
   type="button"
-  onClick={() => setWeekOffset((current) => current + 1)}
+  onClick={() => navigateWeek(1)}
   aria-label="Show next week"
   className="grid size-10 place-items-center rounded-full border border-[#e8ebf0] bg-white transition hover:border-[#2f80ed] hover:text-[#2f80ed]"
 >
@@ -560,7 +631,10 @@ export default function WeeklyPlanner() {
                   <button
                     key={filter}
                     type="button"
-                    onClick={() => setDepartmentFilter(filter)}
+                    onClick={() => {
+                      setDepartmentFilter(filter);
+                      updateServerFilter("department",filter);
+                    }}
                     className={`flex items-center gap-2 rounded-full px-4 py-2.5 text-xs font-bold transition ${
                       departmentFilter === filter
                         ? "bg-[#15181d] text-white"
@@ -592,7 +666,11 @@ export default function WeeklyPlanner() {
                     type="search"
                     value={searchQuery}
                     onChange={(event) =>
-                      setSearchQuery(event.target.value)
+                      {
+                        const value=event.target.value;
+                        setSearchQuery(value);
+                        updateServerFilter("search",value.trim()||null);
+                      }
                     }
                     placeholder="Search brand, task or assignee..."
                     className="w-full bg-transparent text-xs outline-none sm:w-64"
@@ -603,7 +681,9 @@ export default function WeeklyPlanner() {
   icon={Check}
   value={statusFilter}
   options={plannerStatusOptions}
-  onValueChange={setStatusFilter}
+  onValueChange={(value)=>{
+    setStatusFilter(value);updateServerFilter("status",value);
+  }}
   ariaLabel="Filter tasks by status"
   menuAlign="right"
 />
@@ -611,11 +691,16 @@ export default function WeeklyPlanner() {
 <PillSelect<AssigneeFilter>
   icon={Users}
   value={assigneeFilter}
-  options={plannerAssigneeOptions}
-  onValueChange={setAssigneeFilter}
+  options={activeAssigneeOptions}
+  onValueChange={(value)=>{
+    setAssigneeFilter(value);
+    const id=options?.assignees.find((item)=>item.name===value)?.id??null;
+    updateServerFilter("assignee",id);
+  }}
   ariaLabel="Filter tasks by assignee"
   menuAlign="right"
 />
+                {queryPending ? <span className="self-center text-[10px] text-[#858c97]">Updating…</span> : null}
               </div>
             </div>
           </section>
@@ -869,14 +954,28 @@ export default function WeeklyPlanner() {
 
                 <button
                   type="button"
-                  onClick={() => {
-                    setTasks((current) => current.filter((task) => task.id !== selectedTask.id));
-                    setSelectedTaskId(null);
+                  disabled={!["completed","archived"].includes(selectedTask.canonicalStatus ?? "")}
+                  title={
+                    ["completed","archived"].includes(selectedTask.canonicalStatus ?? "")
+                      ? undefined : "Only completed tasks can be archived."
+                  }
+                  onClick={async () => {
+                    const reopening = selectedTask.canonicalStatus === "archived";
+                    const result = await transitionTaskAction({
+                      taskId: String(selectedTask.id),
+                      expectedFrom: reopening ? "archived" : "completed",
+                      toStatus: reopening ? "draft" : "archived",
+                      reason: null,
+                    });
+                    if (result.ok) {
+                      setSelectedTaskId(null);
+                      router.refresh();
+                    }
                   }}
-                  className="flex items-center justify-center gap-2 rounded-full border border-red-100 bg-red-50 px-5 py-3 text-xs font-bold text-red-600"
+                  className="flex items-center justify-center gap-2 rounded-full border border-red-100 bg-red-50 px-5 py-3 text-xs font-bold text-red-600 disabled:opacity-40"
                 >
                   <Trash2 size={14} />
-                  Delete Task
+                  {selectedTask.canonicalStatus === "archived" ? "Reopen Task" : "Archive Task"}
                 </button>
               </div>
             </div>
@@ -947,7 +1046,7 @@ export default function WeeklyPlanner() {
 
 <PillSelect<string>
   value={newTask.brand}
-  options={brands.map((value) => ({ label: value, value }))}
+  options={plannerBrands.map((value) => ({ label: value, value }))}
   onValueChange={(brand) => setNewTask((current) => ({ ...current, brand }))}
   ariaLabel="Select brand"
   variant="field"
@@ -995,7 +1094,7 @@ export default function WeeklyPlanner() {
 
 <PillSelect<string>
   value={newTask.assignee}
-  options={teamMembers[newTask.department].map((value) => ({ label: value, value }))}
+  options={plannerTeamMembers[newTask.department].map((value) => ({ label: value, value }))}
   onValueChange={(assignee) => setNewTask((current) => ({ ...current, assignee }))}
   ariaLabel="Select assignee"
   variant="field"

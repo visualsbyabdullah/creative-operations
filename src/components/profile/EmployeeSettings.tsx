@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 
 import EmployeeHeader from "@/components/layout/EmployeeHeader";
+import type { SelfProfile } from "@/lib/profiles/profile-types";
+import { updateOwnProfileAction } from "@/app/profile/actions";
 
 type NotificationSettings = {
   newTasks: boolean;
@@ -98,16 +100,16 @@ function PreferenceRow({
   );
 }
 
-export default function EmployeeSettings() {
+export default function EmployeeSettings({ profile }: { profile: SelfProfile }) {
   const [preferences, setPreferences] =
     useState<NotificationSettings>({
-      newTasks: true,
-      deadlines: true,
-      revisions: true,
-      approvals: true,
-      published: true,
-      email: true,
-      inApp: true,
+      newTasks: profile.preferences.newTaskAssignments,
+      deadlines: profile.preferences.deadlineReminders,
+      revisions: profile.preferences.revisionRequests,
+      approvals: profile.preferences.approvalUpdates,
+      published: profile.preferences.publishingUpdates,
+      email: profile.preferences.emailEnabled,
+      inApp: profile.preferences.inAppEnabled,
     });
 
   const [password, setPassword] =
@@ -138,10 +140,27 @@ export default function EmployeeSettings() {
     }, 3000);
   }
 
-  function savePreferences() {
-    showMessage(
-      "Settings successfully saved.",
-    );
+  async function savePreferences() {
+    const result = await updateOwnProfileAction({
+      fullName: profile.fullName,
+      avatarUrl: profile.avatarUrl,
+      phone: profile.phone,
+      timezone: profile.timezone,
+      preferences: {
+        newTaskAssignments: preferences.newTasks,
+        deadlineReminders: preferences.deadlines,
+        revisionRequests: preferences.revisions,
+        approvalUpdates: preferences.approvals,
+        publishingUpdates: preferences.published,
+        emailEnabled: preferences.email,
+        inAppEnabled: preferences.inApp,
+      },
+      expectedUpdatedAt: profile.updatedAt,
+    });
+    showMessage(result.ok ? "Settings successfully saved." :
+      result.code === "stale_update"
+        ? "Settings changed elsewhere. Reload before saving again."
+        : "Settings could not be saved.");
   }
 
   function updatePassword() {

@@ -2,15 +2,21 @@ import EmployeeRoleDashboard from "@/components/dashboard/roles/EmployeeRoleDash
 import HrRoleDashboard from "@/components/dashboard/roles/HrRoleDashboard";
 import ManagerRoleDashboard from "@/components/dashboard/roles/ManagerRoleDashboard";
 import { requireAppProfile } from "@/lib/auth/requireAppProfile";
+import { listTasks } from "@/lib/tasks/task-service";
+import { getManagementDashboard } from "@/lib/dashboard/dashboard-service";
 
 export default async function DashboardPage() {
   const profile = await requireAppProfile();
+  const tasks = await listTasks();
+  const backendTasks = tasks.ok ? tasks.data : [];
 
   if (profile.role === "graphic_designer" || profile.role === "video_editor") {
-    return <EmployeeRoleDashboard profile={profile} />;
+    return <EmployeeRoleDashboard profile={profile} backendTasks={backendTasks} />;
   }
 
+  const dashboard=await getManagementDashboard();
+  const managementData=dashboard.ok?dashboard.data:null;
   return profile.role === "hr"
-    ? <HrRoleDashboard profile={profile} />
-    : <ManagerRoleDashboard profile={profile} />;
+    ? <HrRoleDashboard profile={profile} data={managementData} />
+    : <ManagerRoleDashboard profile={profile} data={managementData} />;
 }

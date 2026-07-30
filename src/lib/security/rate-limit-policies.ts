@@ -29,8 +29,31 @@ export const AUTH_RATE_LIMIT_POLICIES = {
   },
 } as const;
 
+export const BUSINESS_RATE_LIMIT_POLICIES = {
+  profile_write: { limit: 20, windowSeconds: 600 },
+  employee_directory_read: { limit: 120, windowSeconds: 60 },
+  employee_detail_read: { limit: 120, windowSeconds: 60 },
+  employee_manage: { limit: 30, windowSeconds: 3600 },
+  employee_status_change: { limit: 30, windowSeconds: 3600 },
+  employee_role_change: { limit: 20, windowSeconds: 3600 },
+  employee_invitation: { limit: 10, windowSeconds: 3600 },
+  employee_invitation_retry: { limit: 20, windowSeconds: 3600 },
+  brand_read: { limit: 120, windowSeconds: 60 },
+  brand_mutation: { limit: 30, windowSeconds: 3600 },
+  avatar_upload: { limit: 10, windowSeconds: 600 },
+  avatar_replace: { limit: 10, windowSeconds: 600 },
+  avatar_remove: { limit: 10, windowSeconds: 600 },
+  task_attachment_upload: { limit: 20, windowSeconds: 600 },
+  task_attachment_remove: { limit: 30, windowSeconds: 600 },
+  submission_attachment_upload: { limit: 20, windowSeconds: 600 },
+  submission_attachment_remove: { limit: 20, windowSeconds: 600 },
+  management_attachment_remove: { limit: 30, windowSeconds: 600 },
+  storage_signed_url: { limit: 120, windowSeconds: 60 },
+} as const;
+
 export type AuthRateLimitPolicy =
-  keyof typeof AUTH_RATE_LIMIT_POLICIES;
+  | keyof typeof AUTH_RATE_LIMIT_POLICIES
+  | keyof typeof BUSINESS_RATE_LIMIT_POLICIES;
 
 export const AUTH_LIMITER_FAILURE_POLICY = {
   login: "closed",
@@ -45,8 +68,11 @@ export function clampRetryAfter(
   policy: AuthRateLimitPolicy,
   value: number,
 ) {
-  const windowSeconds =
-    AUTH_RATE_LIMIT_POLICIES[policy].windowSeconds;
+  const policies = {
+    ...AUTH_RATE_LIMIT_POLICIES,
+    ...BUSINESS_RATE_LIMIT_POLICIES,
+  };
+  const windowSeconds = policies[policy].windowSeconds;
 
   return Math.min(
     windowSeconds,

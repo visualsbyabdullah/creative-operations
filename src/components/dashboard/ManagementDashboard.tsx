@@ -9,20 +9,19 @@ import { CircleAlert, Clock3, ExternalLink, ListChecks, Plus, Send, Users } from
 import EmployeeHeader from "@/components/layout/EmployeeHeader";
 import EmployeeDetailsDrawer from "@/components/management/EmployeeDetailsDrawer";
 import type { EmployeeProfile } from "@/types/auth";
+import type { ManagementDashboardData } from "@/lib/dashboard/dashboard-service";
 
-const metrics = [
+const initialMetrics = [
   { label: "Active Tasks", value: "14", caption: "Across both departments", icon: ListChecks, featured: true },
   { label: "Pending Reviews", value: "4", caption: "Awaiting feedback", icon: Clock3, tone: "bg-amber-50 text-amber-600" },
   { label: "Delayed Tasks", value: "2", caption: "Reasons recorded", icon: CircleAlert, tone: "bg-red-50 text-red-600" },
   { label: "Team Members", value: "4", caption: "Design and video team", icon: Users, tone: "bg-violet-50 text-violet-600" },
 ];
 
-const team = [
-  { name: "Abdullah Naeem", role: "Graphic Designer", active: 4, completed: 8, progress: 67, status: "On Track" as const, weekly: [45, 72, 58, 86, 67] },
-  { name: "Ali Raza", role: "Graphic Designer", active: 3, completed: 9, progress: 75, status: "Review Pending" as const, weekly: [62, 78, 70, 88, 75] },
-  { name: "Hamza Khan", role: "Video Editor", active: 4, completed: 6, progress: 60, status: "Delayed" as const, weekly: [38, 64, 52, 71, 60] },
-  { name: "Usman Ali", role: "Video Editor", active: 3, completed: 7, progress: 70, status: "On Track" as const, weekly: [54, 68, 76, 64, 70] },
-];
+type DashboardMember = {
+  name:string;role:string;active:number;completed:number;progress:number;
+  status:"On Track"|"Review Pending"|"Delayed";weekly?:number[];
+};
 
 const workloadStatusStyles: Record<string, string> = {
   "On Track": "bg-emerald-50 text-emerald-700",
@@ -30,16 +29,28 @@ const workloadStatusStyles: Record<string, string> = {
   Delayed: "bg-red-50 text-red-700",
 };
 
-const reviews = [
-  { title: "Payroll Automation Post", brand: "Softech", assignee: "Ali Raza", type: "Design" },
-  { title: "Business Automation Reel", brand: "Softech", assignee: "Hamza Khan", type: "Video" },
-  { title: "AI Campaign Planner Carousel", brand: "Softgenie", assignee: "Abdullah Naeem", type: "Design" },
-];
-
-export default function ManagementDashboard({ profile }: { profile: EmployeeProfile }) {
+export default function ManagementDashboard({ profile,data }: { profile: EmployeeProfile;data:ManagementDashboardData|null }) {
+  const metrics=data?[
+    {label:"Active Tasks",value:String(data.activeTasks),caption:"Across both departments",icon:ListChecks,featured:true},
+    {label:"Pending Reviews",value:String(data.pendingReviews),caption:"Awaiting feedback",icon:Clock3,tone:"bg-amber-50 text-amber-600"},
+    {label:"Delayed Tasks",value:String(data.delayedTasks),caption:"Past their deadline",icon:CircleAlert,tone:"bg-red-50 text-red-600"},
+    {label:"Team Members",value:String(data.teamMembers),caption:"Active design and video team",icon:Users,tone:"bg-violet-50 text-violet-600"},
+  ]:initialMetrics.map((metric)=>({...metric,value:"—",caption:"Temporarily unavailable"}));
+  const teamRows=data?data.team.map((member)=>({
+    name:member.name,
+    role:member.role==="graphic_designer"?"Graphic Designer":"Video Editor",
+    active:member.active,
+    completed:member.completed,
+    progress:member.progress??0,
+    status:member.status,
+  })):[];
+  const reviewRows=data?data.reviews.map((review)=>({
+    title:review.title,brand:review.brand,assignee:review.assignee,
+    type:review.type==="design"?"Design":"Video",
+  })):[];
   const [animationProgress, setAnimationProgress] = useState(0);
   const [selectedEmployee, setSelectedEmployee] =
-    useState<(typeof team)[number] | null>(null);
+    useState<DashboardMember | null>(null);
 
   useEffect(() => {
     let frame = 0;
@@ -124,11 +135,10 @@ export default function ManagementDashboard({ profile }: { profile: EmployeeProf
                     <tr><th className="px-6 py-4">Employee</th><th className="px-6 py-4">Active</th><th className="px-6 py-4">Completed</th><th className="px-6 py-4">Weekly Progress</th><th className="px-6 py-4"><div className="text-left">Workload Status</div></th></tr>
                   </thead>
                   <tbody>
-                    {team.map((member) => (
+                    {teamRows.map((member) => (
                       <tr
   key={member.name}
-  onClick={() => setSelectedEmployee(member)}
-  className="cursor-pointer border-t border-[#f0f2f5] transition hover:bg-[#fafcff]"
+  className="border-t border-[#f0f2f5]"
 >
                         <td className="px-6 py-4">
                           <p className="text-sm font-bold">{member.name}</p>
@@ -171,7 +181,7 @@ export default function ManagementDashboard({ profile }: { profile: EmployeeProf
   </div>
 
   <div className="mt-5 space-y-3">
-    {reviews.map((review) => (
+    {reviewRows.map((review) => (
       <Link
         key={review.title}
         href="/submissions"

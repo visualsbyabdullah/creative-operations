@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 
 import {
   CalendarDays,
@@ -24,6 +25,7 @@ import type {
 } from "@/config/employee";
 
 import { useEmployee } from "@/context/EmployeeContext";
+import type { TaskView } from "@/lib/tasks/task-types";
 
 type WeekDay =
   | "Monday"
@@ -49,7 +51,7 @@ type Platform =
   | "YouTube";
 
 type ScheduleTask = {
-  id: number;
+  id: number | string;
   brand: string;
   title: string;
   department: EmployeeDepartment;
@@ -257,6 +259,36 @@ const scheduleTasks: ScheduleTask[] = [
   },
 ];
 
+const canonicalStatus: Record<TaskView["status"], TaskStatus> = {
+  draft: "Not Started",
+  assigned: "Not Started",
+  in_progress: "In Progress",
+  submitted: "In Review",
+  revision_requested: "Revision Required",
+  completed: "Published",
+  archived: "Approved",
+};
+
+function mapTask(task: TaskView): ScheduleTask | null {
+  const date = new Date(`${task.scheduledDate}T00:00:00`);
+  const day = new Intl.DateTimeFormat("en-US", { weekday: "long" }).format(date);
+  if (!weekDays.includes(day as WeekDay)) return null;
+  return {
+    id: task.id,
+    brand: task.brandName,
+    title: task.title,
+    department: task.department === "graphic_design" ? "Graphic Design" : "Video Editing",
+    contentType: task.contentType,
+    platforms: [],
+    day: day as WeekDay,
+    date: new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short" }).format(date),
+    deadline: new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" })
+      .format(new Date(task.deadlineAt)),
+    status: task.delayReason ? "Delayed" : canonicalStatus[task.status],
+    delayReason: task.delayReason ?? undefined,
+  };
+}
+
 function StatusBadge({
   status,
 }: {
@@ -271,20 +303,56 @@ function StatusBadge({
   );
 }
 
-export default function MySchedule() {
+export default function MySchedule({
+  backendTasks,
+  weekStart,
+  initialFilters,
+}: {
+  backendTasks?: TaskView[];
+  weekStart: string;
+  initialFilters:{search:string;status:string;day:string};
+}) {
+  const router = useRouter();
+  const [queryPending,startQueryTransition]=useTransition();
   const {
     department: selectedDepartment,
     employee,
   } = useEmployee();
 
   const [dayFilter, setDayFilter] =
-    useState<DayFilter>("All Days");
+    useState<DayFilter>(dayFilterOptions.some((item)=>item.value===initialFilters.day)
+      ?initialFilters.day as DayFilter:"All Days");
 
   const [statusFilter, setStatusFilter] =
-    useState<StatusFilter>("All Statuses");
+    useState<StatusFilter>(statusFilterOptions.some((item)=>item.value===initialFilters.status)
+      ?initialFilters.status as StatusFilter:"All Statuses");
 
   const [searchQuery, setSearchQuery] =
-    useState("");
+    useState(initialFilters.search);
+  function updateServerFilter(key:string,value:string|null){
+    const params=new URLSearchParams(window.location.search);
+    if(value&&value!=="All Days"&&value!=="All Statuses")params.set(key,value);
+    else params.delete(key);
+    params.delete("cursor");
+    startQueryTransition(()=>router.replace(`/schedule?${params.toString()}`));
+  }
+  const weekLabel = useMemo(() => {
+    const start = new Date(`${weekStart}T00:00:00.000Z`);
+    const end = new Date(start);
+    end.setUTCDate(start.getUTCDate() + 6);
+    return `${start.getUTCDate()} ${start.toLocaleString("en-US", { month: "short", timeZone: "UTC" })} – ${end.getUTCDate()} ${end.toLocaleString("en-US", { month: "short", timeZone: "UTC" })}`;
+  }, [weekStart]);
+  function navigateWeek(offset: number) {
+    const date = new Date(`${weekStart}T00:00:00.000Z`);
+    date.setUTCDate(date.getUTCDate() + offset * 7);
+    router.push(`/schedule?week=${date.toISOString().slice(0, 10)}`);
+  }
+  const realScheduleTasks = useMemo(
+    () => backendTasks === undefined
+      ? scheduleTasks
+      : backendTasks.map(mapTask).filter((task): task is ScheduleTask => task !== null),
+    [backendTasks],
+  );
 
 
   const employeeTasks = useMemo(() => {
@@ -292,7 +360,7 @@ export default function MySchedule() {
       .trim()
       .toLowerCase();
 
-    return scheduleTasks.filter((task) => {
+    return realScheduleTasks.filter((task) => {
       const departmentMatches =
         task.department === selectedDepartment;
 
@@ -328,16 +396,17 @@ export default function MySchedule() {
     dayFilter,
     statusFilter,
     searchQuery,
+    realScheduleTasks,
   ]);
 
   const departmentTasks = useMemo(
     () =>
-      scheduleTasks.filter(
+      realScheduleTasks.filter(
         (task) =>
           task.department ===
           selectedDepartment,
       ),
-    [selectedDepartment],
+    [realScheduleTasks, selectedDepartment],
   );
 
   const stats = useMemo(() => {
@@ -402,6 +471,7 @@ export default function MySchedule() {
               <button
                 type="button"
                 aria-label="Previous week"
+                onClick={() => navigateWeek(-1)}
                 className="grid size-11 place-items-center rounded-full border border-[#e7ebf0] bg-white"
               >
                 <ChevronLeft size={17} />
@@ -409,12 +479,13 @@ export default function MySchedule() {
 
               <div className="inline-flex h-11 items-center gap-2.5 rounded-full border border-[#e7ebf0] bg-white px-4 text-xs font-bold text-[#4f5762]">
                 <CalendarDays size={15} />
-                20-24 July 2026
+                {weekLabel}
               </div>
 
               <button
                 type="button"
                 aria-label="Next week"
+                onClick={() => navigateWeek(1)}
                 className="grid size-11 place-items-center rounded-full border border-[#e7ebf0] bg-white"
               >
                 <ChevronRight size={17} />
@@ -537,9 +608,11 @@ export default function MySchedule() {
                     type="search"
                     value={searchQuery}
                     onChange={(event) =>
-                      setSearchQuery(
-                        event.target.value,
-                      )
+                      {
+                        const value=event.target.value;
+                        setSearchQuery(value);
+                        updateServerFilter("search",value.trim()||null);
+                      }
                     }
                     placeholder="Search schedule..."
                     className="w-full bg-transparent text-xs outline-none"
@@ -551,7 +624,9 @@ export default function MySchedule() {
                   ariaLabel="Filter schedule by day"
                   value={dayFilter}
                   options={dayFilterOptions}
-                  onValueChange={setDayFilter}
+                  onValueChange={(value)=>{
+                    setDayFilter(value);updateServerFilter("day",value);
+                  }}
                 />
 
                 <PillSelect
@@ -559,8 +634,11 @@ export default function MySchedule() {
                   ariaLabel="Filter schedule by status"
                   value={statusFilter}
                   options={statusFilterOptions}
-                  onValueChange={setStatusFilter}
+                  onValueChange={(value)=>{
+                    setStatusFilter(value);updateServerFilter("status",value);
+                  }}
                 />
+                {queryPending ? <span className="self-center text-[10px] text-[#858c97]">Updating…</span> : null}
               </div>
             </div>
           </section>
@@ -776,4 +854,3 @@ export default function MySchedule() {
     </main>
   );
 }
-
