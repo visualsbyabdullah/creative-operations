@@ -69,4 +69,31 @@ describe("administrative client boundary", () => {
     );
     expect(adminSource).not.toContain("cookies(");
   });
+
+  it("keeps administrative modules out of invitation Client Components", () => {
+    const invitationComponents = [
+      join(
+        sourceRoot,
+        "components",
+        "auth",
+        "InvitationFragmentHandler.tsx",
+      ),
+      join(
+        sourceRoot,
+        "components",
+        "auth",
+        "SetInvitationPasswordForm.tsx",
+      ),
+    ];
+
+    for (const path of invitationComponents) {
+      const source = readFileSync(path, "utf8");
+      expect(source).not.toContain(
+        "@/lib/supabase/admin",
+      );
+      expect(source).not.toMatch(
+        /SUPABASE_(?:SECRET|SERVICE_ROLE)_KEY/,
+      );
+    }
+  });
 });

@@ -26,7 +26,20 @@ describe("authentication security integration", () => {
       "utf8",
     );
     const callback = readFileSync(
-      join(authRoot, "callback", "route.ts"),
+      join(
+        authRoot,
+        "callback",
+        "exchange",
+        "route.ts",
+      ),
+      "utf8",
+    );
+    const callbackPage = readFileSync(
+      join(authRoot, "callback", "page.tsx"),
+      "utf8",
+    );
+    const invitationActions = readFileSync(
+      join(authRoot, "invitation-actions.ts"),
       "utf8",
     );
 
@@ -64,6 +77,37 @@ describe("authentication security integration", () => {
     expect(callback).not.toContain(
       'request.headers.get("referer")',
     );
+    expect(callback).toContain(
+      'redirectType === "recovery"',
+    );
+    expect(callback).toContain(
+      'redirectType === "invite"',
+    );
+    expect(callback).toContain(
+      '"/reset-password"',
+    );
+    expect(callback).toContain(
+      '"/auth/set-password"',
+    );
+    expect(callbackPage).toContain(
+      "<InvitationFragmentHandler />",
+    );
+    expect(callbackPage).toContain(
+      'redirect(`/auth/callback/exchange?',
+    );
+    expect(invitationActions).toContain(
+      "supabase.auth.getClaims()",
+    );
+    expect(invitationActions).toContain(
+      '.method === "otp"',
+    );
+    expect(invitationActions.indexOf(
+      "verifyInvitationState(",
+    )).toBeLessThan(
+      invitationActions.indexOf(
+        "setInvitationPassword(",
+      ),
+    );
   });
 
   it("preserves Remember Me cookie behavior and deletion writes", () => {
@@ -94,5 +138,27 @@ describe("authentication security integration", () => {
     expect(session[0].options.maxAge).toBeUndefined();
     expect(persistent[1]).toEqual(source[1]);
     expect(session[1]).toEqual(source[1]);
+  });
+
+  it("checks the login invitation fragment before rendering credentials", () => {
+    const loginPage = readFileSync(
+      join(
+        process.cwd(),
+        "src",
+        "app",
+        "login",
+        "page.tsx",
+      ),
+      "utf8",
+    );
+
+    expect(loginPage).toContain(
+      "<InvitationFragmentHandler>",
+    );
+    expect(loginPage.indexOf(
+      "<InvitationFragmentHandler>",
+    )).toBeLessThan(
+      loginPage.indexOf("<LoginForm"),
+    );
   });
 });

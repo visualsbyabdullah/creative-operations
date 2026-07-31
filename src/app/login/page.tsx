@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import LoginForm from "@/components/auth/LoginForm";
+import InvitationFragmentHandler from "@/components/auth/InvitationFragmentHandler";
 import {
   getActiveProfile,
   getRoleDestination,
@@ -32,12 +33,14 @@ export default async function LoginPage({
   const state = (await searchParams).state;
 
   return (
-    <LoginForm
-      successMessage={
-        state === "password_reset"
-          ? "Your password has been reset. Sign in with your new password."
-          : undefined
-      }
-    />
+    <InvitationFragmentHandler>
+      <LoginForm
+        successMessage={
+          state === "password_reset"
+            ? "Your password has been reset. Sign in with your new password."
+            : undefined
+        }
+      />
+    </InvitationFragmentHandler>
   );
 }

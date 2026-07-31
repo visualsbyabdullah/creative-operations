@@ -17,6 +17,31 @@ import {
   readAuthPersistence,
 } from "@/lib/supabase/cookie-adapters";
 
+const PROTECTED_APPLICATION_ROUTES = [
+  "/",
+  "/dashboard",
+  "/tasks",
+  "/schedule",
+  "/submissions",
+  "/notifications",
+  "/profile",
+  "/settings",
+  "/brands",
+  "/planner",
+  "/employees",
+] as const;
+
+export function isProtectedApplicationRoute(
+  pathname: string,
+) {
+  return PROTECTED_APPLICATION_ROUTES.some(
+    (route) =>
+      pathname === route ||
+      (route !== "/" &&
+        pathname.startsWith(`${route}/`)),
+  );
+}
+
 export async function updateSession(
   request: NextRequest,
 ) {
@@ -138,29 +163,8 @@ export async function updateSession(
     });
   }
 
-  const protectedRoutes = [
-    "/",
-    "/dashboard",
-    "/tasks",
-    "/schedule",
-    "/submissions",
-    "/notifications",
-    "/profile",
-    "/settings",
-    "/brands",
-    "/planner",
-    "/employees",
-  ];
-
   const isProtectedRoute =
-    protectedRoutes.some(
-      (route) =>
-        pathname === route ||
-        (route !== "/" &&
-        pathname.startsWith(
-          `${route}/`,
-        )),
-    );
+    isProtectedApplicationRoute(pathname);
 
   if (
     isProtectedRoute &&
