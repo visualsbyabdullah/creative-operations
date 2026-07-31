@@ -28,7 +28,18 @@ type InviteVerificationClient = {
   };
 };
 
-const TOKEN_HASH_PATTERN = /^[a-f0-9]{64}$/i;
+const MIN_TOKEN_HASH_LENGTH = 16;
+const MAX_TOKEN_HASH_LENGTH = 2048;
+
+function isBoundedOpaqueToken(
+  value: string,
+) {
+  return (
+    value.length >= MIN_TOKEN_HASH_LENGTH &&
+    value.length <= MAX_TOKEN_HASH_LENGTH &&
+    !/[\u0000-\u0020\u007f]/.test(value)
+  );
+}
 
 export function validateInviteTokenInput(
   tokenHash: unknown,
@@ -37,7 +48,7 @@ export function validateInviteTokenInput(
   if (
     type !== "invite" ||
     typeof tokenHash !== "string" ||
-    !TOKEN_HASH_PATTERN.test(tokenHash)
+    !isBoundedOpaqueToken(tokenHash)
   ) {
     return {
       ok: false,

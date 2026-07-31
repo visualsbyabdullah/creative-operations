@@ -186,6 +186,9 @@ describe("authentication security integration", () => {
     expect(acceptPage).toContain(
       "AcceptInviteForm",
     );
+    expect(acceptPage).toContain(
+      "const parameters = await searchParams",
+    );
     expect(acceptAction).toContain(
       "verifyInviteToken(",
     );

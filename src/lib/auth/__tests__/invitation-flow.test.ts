@@ -190,9 +190,10 @@ describe("implicit invitation flow", () => {
 });
 
 describe("scanner-resistant invitation flow", () => {
-  const tokenHash = "a".repeat(64);
+  const tokenHash =
+    "opaque-provider_token-hash.value-1234567890";
 
-  it("accepts only a fixed invite type and valid token hash", () => {
+  it("accepts an opaque provider token with a fixed invite type", () => {
     expect(
       validateInviteTokenInput(
         tokenHash,
@@ -205,6 +206,24 @@ describe("scanner-resistant invitation flow", () => {
     expect(
       validateInviteTokenInput(
         undefined,
+        "invite",
+      ),
+    ).toEqual({
+      ok: false,
+      message: SAFE_INVITATION_ERROR,
+    });
+    expect(
+      validateInviteTokenInput(
+        "too-short",
+        "invite",
+      ),
+    ).toEqual({
+      ok: false,
+      message: SAFE_INVITATION_ERROR,
+    });
+    expect(
+      validateInviteTokenInput(
+        `${tokenHash}\ninvalid`,
         "invite",
       ),
     ).toEqual({
