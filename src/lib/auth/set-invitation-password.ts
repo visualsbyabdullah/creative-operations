@@ -11,14 +11,20 @@ type PasswordClient = {
 type CompletionResult =
   | {
       ok: true;
-      destination: "/dashboard" | "/inactive";
+      destination:
+        | "/dashboard"
+        | "/inactive"
+        | "/auth/signout?reason=denied";
     }
   | { ok: false };
 
 export type SetInvitationPasswordResult =
   | {
       ok: true;
-      destination: "/dashboard" | "/inactive";
+      destination:
+        | "/dashboard"
+        | "/inactive"
+        | "/auth/signout?reason=denied";
     }
   | {
       ok: false;

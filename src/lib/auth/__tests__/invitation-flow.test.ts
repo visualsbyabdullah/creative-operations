@@ -23,6 +23,12 @@ import {
   validateInviteTokenInput,
   verifyInviteToken,
 } from "@/lib/auth/accept-invite";
+import { invitationDestination } from "@/lib/auth/invitation-destination";
+import {
+  AUTH_RECOVERY_MAX_AGE_SECONDS,
+  createRecoveryState,
+  verifyRecoveryState,
+} from "@/lib/auth/recovery-state";
 
 const accessToken = "access-token-test-value";
 const refreshToken = "refresh-token-test-value";
@@ -345,6 +351,68 @@ describe("signed invitation state", () => {
       ),
     ).toBe(false);
   });
+
+  it("keeps invite and recovery setup states user-bound and non-substitutable", () => {
+    vi.stubEnv(
+      "AUTH_SECURITY_HMAC_SECRET",
+      "invite-test-secret-with-at-least-thirty-two-characters",
+    );
+    vi.stubEnv(
+      "AUTH_RECOVERY_STATE_SECRET",
+      "recovery-test-secret-with-at-least-thirty-two-characters",
+    );
+    const recoveryState = createRecoveryState(
+      invitedUserId,
+      2_000,
+    );
+    const invitationState = createInvitationState(
+      invitedUserId,
+      2_000,
+    );
+
+    expect(
+      verifyRecoveryState(
+        recoveryState,
+        invitedUserId,
+        2_001,
+      ),
+    ).toBe(true);
+    expect(
+      verifyRecoveryState(
+        recoveryState,
+        "22222222-2222-4222-8222-222222222222",
+        2_001,
+      ),
+    ).toBe(false);
+    expect(
+      verifyRecoveryState(
+        recoveryState,
+        invitedUserId,
+        2_000 + AUTH_RECOVERY_MAX_AGE_SECONDS,
+      ),
+    ).toBe(false);
+    expect(
+      verifyRecoveryState(
+        invitationState,
+        invitedUserId,
+        2_001,
+      ),
+    ).toBe(false);
+    expect(
+      verifyInvitationState(
+        recoveryState,
+        invitedUserId,
+        2_001,
+      ),
+    ).toBe(false);
+    expect(
+      verifyInvitationState(
+        undefined,
+        invitedUserId,
+        2_001,
+      ),
+    ).toBe(false);
+  });
 });
 
 describe("invitation password creation", () => {
@@ -422,6 +490,30 @@ describe("invitation password creation", () => {
       });
     },
   );
+
+  it("maps canonical profile state after password success", () => {
+    expect(
+      invitationDestination({
+        role: "manager",
+        is_active: true,
+      }),
+    ).toBe("/dashboard");
+    expect(
+      invitationDestination({
+        role: "graphic_designer",
+        is_active: false,
+      }),
+    ).toBe("/inactive");
+    expect(
+      invitationDestination(null),
+    ).toBe("/auth/signout?reason=denied");
+    expect(
+      invitationDestination({
+        role: "unknown",
+        is_active: true,
+      }),
+    ).toBe("/auth/signout?reason=denied");
+  });
 
   it("maps expired or rejected invitation sessions safely", async () => {
     const result = await setInvitationPassword(

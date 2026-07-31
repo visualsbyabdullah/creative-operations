@@ -9,18 +9,12 @@ import {
   invitationCookieOptions,
   verifyInvitationState,
 } from "@/lib/auth/invitation-state";
+import {
+  invitationDestination,
+  type InvitationDestination,
+} from "@/lib/auth/invitation-destination";
 import { setInvitationPassword } from "@/lib/auth/set-invitation-password";
 import { createClient } from "@/lib/supabase/server";
-
-type InvitationDestination =
-  | "/dashboard"
-  | "/inactive";
-
-function invitationDestination(
-  isActive: boolean,
-): InvitationDestination {
-  return isActive ? "/dashboard" : "/inactive";
-}
 
 function hasOtpAuthenticationMethod(
   claims: Record<string, unknown> | undefined,
@@ -77,47 +71,38 @@ export async function beginInvitationAcceptance() {
   }
 }
 
-export async function finishInvitationAcceptance(): Promise<
+type ProfileLookup = () => Promise<{
+  data: unknown;
+  error: unknown | null;
+}>;
+
+export async function finishInvitationAcceptance(
+  userId: string,
+  loadProfile: ProfileLookup,
+): Promise<
   | { ok: true; destination: InvitationDestination }
   | { ok: false }
 > {
   const cookieStore = await cookies();
 
   try {
-    const supabase = await createClient("session");
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
     const invitationState = cookieStore.get(
       AUTH_INVITATION_COOKIE_NAME,
     )?.value;
 
     if (
-      userError ||
-      !user ||
       !verifyInvitationState(
         invitationState,
-        user.id,
+        userId,
       )
     ) {
       return { ok: false };
     }
 
     const {
-      data: accountState,
+      data: profile,
       error: profileError,
-    } = await supabase.rpc(
-      "get_own_invitation_account_state_v1",
-    );
-
-    if (
-      profileError ||
-      (accountState !== "active" &&
-        accountState !== "inactive")
-    ) {
-      return { ok: false };
-    }
+    } = await loadProfile();
 
     cookieStore.set(
       invitationCookieDeletionOptions(),
@@ -126,7 +111,7 @@ export async function finishInvitationAcceptance(): Promise<
     return {
       ok: true,
       destination: invitationDestination(
-        accountState === "active",
+        profileError ? null : profile,
       ),
     };
   } catch {
@@ -167,7 +152,20 @@ export async function submitInvitationPassword(
     return await setInvitationPassword(
       input,
       supabase,
-      finishInvitationAcceptance,
+      () =>
+        finishInvitationAcceptance(
+          user.id,
+          async () => {
+            const { data, error } =
+              await supabase
+                .from("profiles")
+                .select("role, is_active")
+                .eq("id", user.id)
+                .maybeSingle();
+
+            return { data, error };
+          },
+        ),
     );
   } catch {
     return {

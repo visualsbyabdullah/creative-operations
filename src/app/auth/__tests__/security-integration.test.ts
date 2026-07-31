@@ -108,6 +108,19 @@ describe("authentication security integration", () => {
         "setInvitationPassword(",
       ),
     );
+    expect(invitationActions).not.toContain(
+      "get_own_invitation_account_state_v1",
+    );
+    expect(invitationActions).toContain(
+      '.from("profiles")',
+    );
+    expect(invitationActions.indexOf(
+      "invitationCookieDeletionOptions()",
+    )).toBeLessThan(
+      invitationActions.indexOf(
+        "destination: invitationDestination(",
+      ),
+    );
   });
 
   it("preserves Remember Me cookie behavior and deletion writes", () => {
@@ -191,6 +204,20 @@ describe("authentication security integration", () => {
     );
     expect(acceptAction).toContain(
       "verifyInviteToken(",
+    );
+    expect(acceptAction.indexOf(
+      'createClient("session")',
+    )).toBeLessThan(
+      acceptAction.indexOf(
+        "verifyInviteToken(",
+      ),
+    );
+    expect(acceptAction.indexOf(
+      "verifyInviteToken(",
+    )).toBeLessThan(
+      acceptAction.indexOf(
+        "invitationCookieOptions()",
+      ),
     );
     expect(acceptAction).toContain(
       'redirect("/auth/set-password")',
