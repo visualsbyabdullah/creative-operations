@@ -7,6 +7,7 @@ describe("authentication proxy route boundaries", () => {
     "/login",
     "/auth/callback",
     "/auth/callback/exchange",
+    "/auth/accept-invite",
     "/auth/set-password",
     "/forgot-password",
     "/reset-password",

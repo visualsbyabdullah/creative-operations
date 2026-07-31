@@ -161,4 +161,42 @@ describe("authentication security integration", () => {
       loginPage.indexOf("<LoginForm"),
     );
   });
+
+  it("keeps token-hash invitation verification user-triggered and fixed-destination", () => {
+    const acceptPage = readFileSync(
+      join(
+        authRoot,
+        "accept-invite",
+        "page.tsx",
+      ),
+      "utf8",
+    );
+    const acceptAction = readFileSync(
+      join(
+        authRoot,
+        "accept-invite",
+        "actions.ts",
+      ),
+      "utf8",
+    );
+
+    expect(acceptPage).not.toContain(
+      "verifyOtp",
+    );
+    expect(acceptPage).toContain(
+      "AcceptInviteForm",
+    );
+    expect(acceptAction).toContain(
+      "verifyInviteToken(",
+    );
+    expect(acceptAction).toContain(
+      'redirect("/auth/set-password")',
+    );
+    expect(acceptAction).not.toContain(
+      'formData.get("next")',
+    );
+    expect(acceptAction).not.toContain(
+      "console.",
+    );
+  });
 });

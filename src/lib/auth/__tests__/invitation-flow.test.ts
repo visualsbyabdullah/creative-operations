@@ -18,6 +18,11 @@ import {
   createInvitationState,
   verifyInvitationState,
 } from "@/lib/auth/invitation-state";
+import {
+  SAFE_INVITATION_ERROR,
+  validateInviteTokenInput,
+  verifyInviteToken,
+} from "@/lib/auth/accept-invite";
 
 const accessToken = "access-token-test-value";
 const refreshToken = "refresh-token-test-value";
@@ -181,6 +186,95 @@ describe("implicit invitation flow", () => {
     expect(
       browser.history.replaceState,
     ).not.toHaveBeenCalled();
+  });
+});
+
+describe("scanner-resistant invitation flow", () => {
+  const tokenHash = "a".repeat(64);
+
+  it("accepts only a fixed invite type and valid token hash", () => {
+    expect(
+      validateInviteTokenInput(
+        tokenHash,
+        "invite",
+      ),
+    ).toEqual({
+      ok: true,
+      tokenHash,
+    });
+    expect(
+      validateInviteTokenInput(
+        undefined,
+        "invite",
+      ),
+    ).toEqual({
+      ok: false,
+      message: SAFE_INVITATION_ERROR,
+    });
+    expect(
+      validateInviteTokenInput(
+        tokenHash,
+        "recovery",
+      ),
+    ).toEqual({
+      ok: false,
+      message: SAFE_INVITATION_ERROR,
+    });
+  });
+
+  it("verifies only after the acceptance operation runs", async () => {
+    const verifyOtp = vi.fn().mockResolvedValue({
+      data: {
+        user: {
+          id: invitedUserId,
+          invited_at: "2026-07-31T00:00:00Z",
+        },
+      },
+      error: null,
+    });
+
+    expect(verifyOtp).not.toHaveBeenCalled();
+    const result = await verifyInviteToken(
+      tokenHash,
+      "invite",
+      { auth: { verifyOtp } },
+    );
+
+    expect(verifyOtp).toHaveBeenCalledWith({
+      token_hash: tokenHash,
+      type: "invite",
+    });
+    expect(result).toEqual({
+      ok: true,
+      userId: invitedUserId,
+    });
+  });
+
+  it("maps provider failures to an error without sensitive values", async () => {
+    const result = await verifyInviteToken(
+      tokenHash,
+      "invite",
+      {
+        auth: {
+          verifyOtp: vi.fn().mockResolvedValue({
+            data: { user: null },
+            error: new Error(
+              `used token ${tokenHash}`,
+            ),
+          }),
+        },
+      },
+    );
+    const serialized = JSON.stringify(result);
+
+    expect(result).toEqual({
+      ok: false,
+      message: SAFE_INVITATION_ERROR,
+    });
+    expect(serialized).not.toContain(tokenHash);
+    expect(serialized).not.toContain(
+      "used token",
+    );
   });
 });
 
