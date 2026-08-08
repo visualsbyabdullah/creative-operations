@@ -59,3 +59,6 @@ fix-dashboard-popup.ps1
 /*-locations.txt
 /fix-*.ps1
 /*-fix.ps1
+/audit-output/
+/backups/
+/backend-status-report.txt

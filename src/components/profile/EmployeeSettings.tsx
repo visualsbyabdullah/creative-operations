@@ -269,7 +269,7 @@ export default function EmployeeSettings({ profile }: { profile: SelfProfile }) 
                 <PreferenceRow
                   icon={Bell}
                   title="Revision requests"
-                  description="Revision feedback milne par."
+                  description="Notify me when revision feedback is received."
                   checked={preferences.revisions}
                   onChange={(value) =>
                     updatePreference(
@@ -282,7 +282,7 @@ export default function EmployeeSettings({ profile }: { profile: SelfProfile }) 
                 <PreferenceRow
                   icon={Check}
                   title="Approval updates"
-                  description="Submission approve hone par."
+                  description="Notify me when a submission is approved."
                   checked={preferences.approvals}
                   onChange={(value) =>
                     updatePreference(

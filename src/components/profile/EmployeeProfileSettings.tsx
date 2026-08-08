@@ -585,7 +585,7 @@ export default function EmployeeProfileSettings({ profile }: { profile: SelfProf
                   <SettingsRow
                     icon={Bell}
                     title="Revision requests"
-                    description="Manager ya reviewer revision request bheje."
+                    description="Notify me when a manager or reviewer requests revisions."
                     checked={
                       notificationSettings.revisionRequests
                     }
@@ -600,7 +600,7 @@ export default function EmployeeProfileSettings({ profile }: { profile: SelfProf
                   <SettingsRow
                     icon={Check}
                     title="Approval updates"
-                    description="Submission approve hone par update."
+                    description="Notify me when a submission is approved."
                     checked={
                       notificationSettings.approvalUpdates
                     }

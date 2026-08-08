@@ -19,7 +19,12 @@ export async function transitionTaskAction(input: unknown) {
 
 export async function createTaskAction(input: unknown) {
   const result = await createAssignedTask(input);
-  if (result.ok) revalidatePath("/planner");
+  if (result.ok) {
+    revalidatePath("/planner");
+    revalidatePath("/tasks");
+    revalidatePath("/notifications");
+    revalidatePath("/dashboard");
+  }
   return result;
 }
 

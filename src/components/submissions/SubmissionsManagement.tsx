@@ -1071,7 +1071,7 @@ export default function SubmissionsManagement({backendItems}:{backendItems?:Subm
                       }),
                     )
                   }
-                  placeholder="Assigned task ka title"
+                  placeholder="Enter the assigned task title"
                   className="mt-2 w-full rounded-2xl border border-[#e5e9ef] px-4 py-3 text-sm outline-none focus:border-[#2f80ed]"
                 />
               </label>

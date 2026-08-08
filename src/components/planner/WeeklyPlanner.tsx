@@ -32,6 +32,7 @@ type TaskStatus =
   | "Not Started"
   | "In Progress"
   | "In Review"
+  | "Revision Required"
   | "Approved"
   | "Published"
   | "Delayed";
@@ -111,6 +112,7 @@ const statusStyles: Record<TaskStatus, string> = {
   "Not Started": "bg-slate-100 text-slate-600",
   "In Progress": "bg-blue-50 text-blue-700",
   "In Review": "bg-amber-50 text-amber-700",
+  "Revision Required": "bg-orange-50 text-orange-700",
   Approved: "bg-emerald-50 text-emerald-700",
   Published: "bg-green-50 text-green-700",
   Delayed: "bg-red-50 text-red-700",
@@ -268,7 +270,7 @@ function mapBackendTask(task: TaskView): PlannerTask {
   const day = date.toLocaleDateString("en-US", { weekday: "long" }) as WeekDay;
   const status: TaskStatus = task.status === "in_progress" ? "In Progress"
     : task.status === "submitted" ? "In Review"
-      : task.status === "revision_requested" ? "Delayed"
+      : task.status === "revision_requested" ? "Revision Required"
         : task.status === "completed" ? "Published" : "Not Started";
   return {
     id: task.id, title: task.title, brand: task.brandName,
@@ -1172,8 +1174,7 @@ export default function WeeklyPlanner({
                 </h2>
 
                 <p className="mt-2 text-sm leading-6 text-[#7d8490]">
-                  A reason is required when marking a task as delayed
-                  hai.
+                  A reason is required when marking a task as delayed.
                 </p>
               </div>
 

@@ -131,7 +131,9 @@ export async function editAssignedTask(input: unknown): Promise<ActionResult<tru
   return { ok: true, data: true };
 }
 
-export async function transitionTask(input: unknown): Promise<ActionResult<true>> {
+export async function transitionTask(
+  input: unknown,
+): Promise<ActionResult<{ updatedAt: string }>> {
   if (!input || typeof input !== "object" || Array.isArray(input)) {
     return { ok: false, code: "validation_failed" };
   }
@@ -146,12 +148,17 @@ export async function transitionTask(input: unknown): Promise<ActionResult<true>
   const actor = await getActiveProfile();
   if (actor.status !== "active") return { ok: false, code: "unauthenticated" };
   const client = await createClient();
-  const { error } = await client.rpc("transition_task", {
+  const { data, error } = await client.rpc("transition_task_v2", {
     p_task_id: value.taskId, p_expected_from: value.expectedFrom,
     p_to_status: value.toStatus, p_reason: value.reason,
   });
-  if (!error) return { ok: true, data: true };
-  return { ok: false, code: error.code === "P0002" ? "stale_update" : "forbidden" };
+  if (!error && typeof data === "string") {
+    return { ok: true, data: { updatedAt: data } };
+  }
+  if (error?.code === "P0002") return { ok: false, code: "stale_update" };
+  if (error?.code === "22023") return { ok: false, code: "validation_failed" };
+  if (error?.code === "42501") return { ok: false, code: "forbidden" };
+  return { ok: false, code: "temporarily_unavailable" };
 }
 
 export async function submitTaskWork(input: unknown): Promise<ActionResult<{ submissionId: string }>> {

@@ -609,7 +609,18 @@ const [selectedTaskId, setSelectedTaskId] =
       reason: null,
     });
     if (result.ok) {
-      updateSelectedTask({ status: "In Progress", canonicalStatus: "in_progress" });
+      updateSelectedTask({
+        status: "In Progress",
+        canonicalStatus: "in_progress",
+        updatedAt: result.data.updatedAt,
+      });
+      setSubmissionMessage("Task status updated. You can now submit work using the form below.");
+    } else {
+      setSubmissionMessage(
+        result.code === "stale_update"
+          ? "This task changed in another session. Close and reopen it before trying again."
+          : "The task status could not be updated. Please try again.",
+      );
     }
   }
 
@@ -664,6 +675,17 @@ const [selectedTaskId, setSelectedTaskId] =
         status: "In Review",
         canonicalStatus: "submitted",
       });
+    } else {
+      submissionKeys.current.delete(taskId);
+      setSubmissionMessage(
+        result.code === "stale_update"
+          ? "This task changed after it was opened. Close and reopen it, then submit again."
+          : result.code === "validation_failed"
+            ? "Enter a valid HTTPS work link before submitting."
+            : result.code === "idempotency_conflict"
+              ? "This submission request conflicts with an earlier attempt. Please try again."
+              : "The submission could not be sent. Please try again.",
+      );
     }
   }
 
