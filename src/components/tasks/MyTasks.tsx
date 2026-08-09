@@ -412,7 +412,7 @@ export default function MyTasks({
           contentType: task.contentType,
           platforms: [] as Platform[],
           day: new Date(`${task.scheduledDate}T12:00:00.000Z`).toLocaleDateString("en-US", { weekday: "long" }) as WeekDay,
-          deadline: task.deadlineAt ? new Date(task.deadlineAt).toLocaleString() : "No deadline set",
+          deadline: task.hasDeadline ? new Date(task.deadlineAt).toLocaleString() : "No deadline set",
           status: task.status === "in_progress" ? "In Progress" as const
             : task.status === "submitted" ? "In Review" as const
               : task.status === "revision_requested" ? "Revision Required" as const
@@ -863,7 +863,7 @@ const [selectedTaskId, setSelectedTaskId] =
                   </p>
 
                   <p className="mt-3 text-xs text-[#959ca7]">
-                    Approved or published
+                    Finished tasks
                   </p>
                 </div>
 

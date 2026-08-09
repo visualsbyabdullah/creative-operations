@@ -279,7 +279,7 @@ function mapBackendTask(task: TaskView): PlannerTask {
     contentType: task.contentType, platform: [],
     assignee: task.assigneeNames.join(", ") || "Unassigned",
     day: weekDays.includes(day) ? day : "Monday",
-    time: task.deadlineAt
+    time: task.hasDeadline
       ? new Date(task.deadlineAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
       : "No deadline",
     status, link: task.referenceUrl ?? undefined, delayReason: task.delayReason ?? undefined,

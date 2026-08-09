@@ -282,7 +282,7 @@ function mapTask(task: TaskView): ScheduleTask | null {
     platforms: [],
     day: day as WeekDay,
     date: new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short" }).format(date),
-    deadline: task.deadlineAt
+    deadline: task.hasDeadline
       ? new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" })
         .format(new Date(task.deadlineAt))
       : "No deadline",

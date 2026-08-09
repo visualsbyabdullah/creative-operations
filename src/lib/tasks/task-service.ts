@@ -14,6 +14,7 @@ function mapTask(row: Record<string, unknown>): TaskView {
     deadlineAt: row.deadline_at
       ? String(row.deadline_at)
       : `${String(row.scheduled_date)}T12:00:00.000Z`,
+    hasDeadline: Boolean(row.deadline_at),
     status: row.status as TaskView["status"],
     priority: row.priority as TaskView["priority"], description: String(row.description ?? ""),
     referenceUrl: row.reference_url as string | null, delayReason: row.delay_reason as string | null,

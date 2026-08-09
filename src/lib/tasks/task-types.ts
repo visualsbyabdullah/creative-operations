@@ -11,6 +11,7 @@ export type TaskView = {
   contentType: string;
   scheduledDate: string;
   deadlineAt: string;
+  hasDeadline?: boolean;
   status: TaskStatus;
   priority: TaskPriority;
   description: string;
