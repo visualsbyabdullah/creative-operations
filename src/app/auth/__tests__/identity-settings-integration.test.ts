@@ -78,4 +78,8 @@ describe("identity and settings integration", () => {
     expect(login).not.toContain("PixelBlast");
     expect(login).toContain("radial-gradient");
   });
+
+  it("runs authenticated server rendering near the staging database", () => {
+    expect(read("src/app/layout.tsx")).toContain('preferredRegion = "hnd1"');
+  });
 });

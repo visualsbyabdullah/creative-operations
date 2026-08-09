@@ -15,6 +15,9 @@ export const metadata: Metadata = {
   description: "Creative team planning, tracking and reporting platform",
 };
 
+// Keep server-rendered data requests close to the Supabase ap-northeast-1 project.
+export const preferredRegion = "hnd1";
+
 export default async function RootLayout({
   children,
 }: Readonly<{
