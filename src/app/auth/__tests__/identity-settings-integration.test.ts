@@ -13,6 +13,13 @@ describe("identity and settings integration", () => {
     expect(handler).toContain('if (!hash) {\n        return;');
   });
 
+  it("classifies auth fragments before invitation UI or invitation processing", () => {
+    const handler = read("src/components/auth/InvitationFragmentHandler.tsx");
+    expect(handler.indexOf("authFragmentType(hash)")).toBeLessThan(handler.indexOf('setState("checking")'));
+    expect(handler).toContain('fragmentType !== "invite" && fragmentType !== "email_change"');
+    expect(handler).toContain('"/profile?state=email_changed"');
+  });
+
   it("limits invitation copy to invitation components and clears stale state", () => {
     const handler = read("src/components/auth/InvitationFragmentHandler.tsx");
     const signout = read("src/app/auth/signout/route.ts");

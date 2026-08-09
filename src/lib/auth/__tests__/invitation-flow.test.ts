@@ -8,6 +8,10 @@ import {
 
 import { establishInvitationFromFragment } from "@/lib/auth/invitation-client-flow";
 import {
+  authFragmentType,
+  establishEmailChangeFromFragment,
+} from "@/lib/auth/email-change-client-flow";
+import {
   clearSensitiveAuthFragment,
   parseInvitationFragment,
 } from "@/lib/auth/invitation-fragment";
@@ -192,6 +196,64 @@ describe("implicit invitation flow", () => {
     expect(
       browser.history.replaceState,
     ).not.toHaveBeenCalled();
+  });
+
+  it.each(["email_change", "recovery", "signup"])(
+    "does not consume a %s fragment as an invitation",
+    async (type) => {
+      const browser = browserState();
+      const client = sessionClient();
+      const result = await establishInvitationFromFragment(
+        `#access_token=${accessToken}&refresh_token=${refreshToken}&type=${type}`,
+        browser.history,
+        browser.location,
+        client,
+        vi.fn(),
+      );
+      expect(result).toEqual({ ok: false, code: "not_invitation" });
+      expect(browser.history.replaceState).not.toHaveBeenCalled();
+      expect(client.auth.setSession).not.toHaveBeenCalled();
+    },
+  );
+
+  it("owns and clears a valid email-change fragment without invitation handling", async () => {
+    const browser = browserState();
+    const client = {
+      auth: {
+        setSession: vi.fn().mockResolvedValue({ error: null }),
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: { email: "new@example.com" } },
+          error: null,
+        }),
+      },
+    };
+    const hash = `#access_token=${accessToken}&refresh_token=${refreshToken}&type=email_change`;
+    expect(authFragmentType(hash)).toBe("email_change");
+    await expect(establishEmailChangeFromFragment(
+      hash,
+      browser.history,
+      browser.location,
+      client,
+    )).resolves.toEqual({ ok: true });
+    expect(browser.history.replaceState).toHaveBeenCalledWith(null, "", "/login");
+  });
+
+  it("leaves recovery fragments untouched by the email-change flow", async () => {
+    const browser = browserState();
+    const client = {
+      auth: {
+        setSession: vi.fn(),
+        getUser: vi.fn(),
+      },
+    };
+    await expect(establishEmailChangeFromFragment(
+      `#access_token=${accessToken}&refresh_token=${refreshToken}&type=recovery`,
+      browser.history,
+      browser.location,
+      client,
+    )).resolves.toEqual({ ok: false });
+    expect(browser.history.replaceState).not.toHaveBeenCalled();
+    expect(client.auth.setSession).not.toHaveBeenCalled();
   });
 });
 

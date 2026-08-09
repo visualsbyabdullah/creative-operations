@@ -31,11 +31,16 @@ export async function establishInvitationFromFragment(
   }
 
   const parsed = parseInvitationFragment(hash);
-  clearSensitiveAuthFragment(browserHistory, location);
-
   if (!parsed.ok) {
-    return { ok: false, code: "invalid_invitation" };
+    return {
+      ok: false,
+      code: parsed.code === "invalid_type" || parsed.code === "missing_fragment"
+        ? "not_invitation"
+        : "invalid_invitation",
+    };
   }
+
+  clearSensitiveAuthFragment(browserHistory, location);
 
   try {
     const { error } = await client.auth.setSession({

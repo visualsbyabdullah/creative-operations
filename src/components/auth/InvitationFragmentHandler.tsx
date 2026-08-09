@@ -9,6 +9,10 @@ import {
 
 import { beginInvitationAcceptance } from "@/app/auth/invitation-actions";
 import { establishInvitationFromFragment } from "@/lib/auth/invitation-client-flow";
+import {
+  authFragmentType,
+  establishEmailChangeFromFragment,
+} from "@/lib/auth/email-change-client-flow";
 import { createClient } from "@/lib/supabase/client";
 
 export default function InvitationFragmentHandler({
@@ -18,7 +22,7 @@ export default function InvitationFragmentHandler({
 }) {
   const router = useRouter();
   const [state, setState] = useState<
-    "checking" | "ordinary" | "invalid"
+    "checking" | "email_change" | "ordinary" | "invalid"
   >("ordinary");
 
   useEffect(() => {
@@ -28,6 +32,26 @@ export default function InvitationFragmentHandler({
       const hash = window.location.hash;
 
       if (!hash) {
+        return;
+      }
+
+      const fragmentType = authFragmentType(hash);
+      if (fragmentType !== "invite" && fragmentType !== "email_change") return;
+
+      if (fragmentType === "email_change") {
+        setState("email_change");
+        try {
+          const result = await establishEmailChangeFromFragment(
+            hash,
+            window.history,
+            window.location,
+            createClient(),
+          );
+          router.replace(result.ok ? "/profile?state=email_changed" : "/login?state=email_change_failed");
+          router.refresh();
+        } catch {
+          router.replace("/login?state=email_change_failed");
+        }
         return;
       }
 
@@ -69,7 +93,9 @@ export default function InvitationFragmentHandler({
         <h1 className="text-2xl font-semibold tracking-[-0.04em]">
           {state === "checking"
             ? "Accepting your invitation…"
-            : "Invitation unavailable"}
+            : state === "email_change"
+              ? "Confirming your email address…"
+              : "Invitation unavailable"}
         </h1>
         <p
           role={state === "invalid" ? "alert" : "status"}
@@ -77,7 +103,9 @@ export default function InvitationFragmentHandler({
         >
           {state === "checking"
             ? "Please wait while we securely prepare your account."
-            : "This invitation is invalid or has expired. Ask your administrator to resend it."}
+            : state === "email_change"
+              ? "Please wait while we securely finish your email change."
+              : "This invitation is invalid or has expired. Ask your administrator to resend it."}
         </p>
       </section>
     </main>

@@ -85,7 +85,15 @@ export async function requestSelfEmailChange(input: unknown): Promise<ActionResu
   const { createClient } = await import("@/lib/supabase/server");
   const client = await createClient();
   const { error } = await client.auth.updateUser({ email });
-  return error ? { ok: false, code: "temporarily_unavailable" } : { ok: true, data: true };
+  if (!error) return { ok: true, data: true };
+  if (
+    error.code === "email_exists" ||
+    error.code === "user_already_exists" ||
+    error.status === 422
+  ) {
+    return { ok: false, code: "email_conflict" };
+  }
+  return { ok: false, code: "temporarily_unavailable" };
 }
 
 export async function changeSelfPassword(input: unknown): Promise<ActionResult<true>> {

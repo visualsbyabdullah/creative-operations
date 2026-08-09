@@ -22,6 +22,10 @@ import {
 import EmployeeHeader from "@/components/layout/EmployeeHeader";
 import type { SelfProfile } from "@/lib/profiles/profile-types";
 import {
+  emailChangeErrorMessage,
+  emailInputState,
+} from "@/lib/profiles/email-change-ui";
+import {
   changePasswordAction,
   requestEmailChangeAction,
   updateOwnProfileAction,
@@ -113,7 +117,13 @@ function SettingsRow({
   );
 }
 
-export default function EmployeeProfileSettings({ profile }: { profile: SelfProfile }) {
+export default function EmployeeProfileSettings({
+  profile,
+  emailChanged = false,
+}: {
+  profile: SelfProfile;
+  emailChanged?: boolean;
+}) {
   const router = useRouter();
   const initials = profile.fullName.split(/\s+/u).map((word) => word[0]).join("").slice(0,2).toUpperCase();
   const roleLabel = getRoleLabel(profile.role);
@@ -147,9 +157,13 @@ export default function EmployeeProfileSettings({ profile }: { profile: SelfProf
       confirmPassword: "",
     });
 
-  const [saveMessage, setSaveMessage] =
-    useState("");
+  const [saveMessage, setSaveMessage] = useState(
+    emailChanged ? "Your email address has been updated." : "",
+  );
+  const [saveTone, setSaveTone] = useState<"success" | "error">("success");
+  const [emailPending, setEmailPending] = useState(false);
   const [avatarPending,startAvatarTransition]=useTransition();
+  const newEmailState = emailInputState(profileForm.email, profileForm.newEmail);
 
   function uploadAvatar(file:File|null){
     if(!file||avatarPending)return;
@@ -274,15 +288,18 @@ export default function EmployeeProfileSettings({ profile }: { profile: SelfProf
   }
 
   async function changeEmail() {
-    const result = await requestEmailChangeAction({ email: profileForm.newEmail });
-    setSaveMessage(result.ok
-      ? "Check your email to confirm the new address."
-      : result.code === "validation_failed"
-        ? "Enter a valid new email address."
-        : result.code === "rate_limited"
-          ? "Too many email change attempts. Please try again later."
-          : "Email change could not be started.");
-    if (result.ok) setProfileForm((current) => ({ ...current, newEmail: "" }));
+    if (emailPending || newEmailState !== "valid") return;
+    setEmailPending(true);
+    try {
+      const result = await requestEmailChangeAction({ email: profileForm.newEmail });
+      setSaveTone(result.ok ? "success" : "error");
+      setSaveMessage(result.ok
+        ? "Check your email to confirm the new address. One more confirmation may be required before it changes."
+        : emailChangeErrorMessage(result.code));
+      if (result.ok) setProfileForm((current) => ({ ...current, newEmail: "" }));
+    } finally {
+      setEmailPending(false);
+    }
   }
 
   return (
@@ -313,7 +330,14 @@ export default function EmployeeProfileSettings({ profile }: { profile: SelfProf
           </section>
 
           {saveMessage ? (
-            <div className="mt-5 flex items-center gap-3 rounded-[18px] border border-emerald-100 bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-700">
+            <div
+              role={saveTone === "error" ? "alert" : "status"}
+              className={`mt-5 flex items-center gap-3 rounded-[18px] border px-4 py-3 text-xs font-semibold ${
+                saveTone === "error"
+                  ? "border-red-100 bg-red-50 text-red-700"
+                  : "border-emerald-100 bg-emerald-50 text-emerald-700"
+              }`}
+            >
               <Check size={16} />
               {saveMessage}
             </div>
@@ -531,12 +555,26 @@ export default function EmployeeProfileSettings({ profile }: { profile: SelfProf
                         className="h-12 w-full bg-transparent text-sm outline-none"
                       />
                     </div>
+                    {newEmailState === "same" ? (
+                      <p className="mt-2 text-[11px] font-semibold text-amber-700">
+                        This is already your current email address.
+                      </p>
+                    ) : newEmailState === "invalid" ? (
+                      <p className="mt-2 text-[11px] font-semibold text-red-600">
+                        Enter a valid email address.
+                      </p>
+                    ) : null}
                     <button
                       type="button"
                       onClick={changeEmail}
-                      className="mt-3 rounded-full border border-[#dfe5ed] px-4 py-2 text-xs font-bold text-[#4f5762] hover:border-[#2f80ed] hover:text-[#2f80ed]"
+                      disabled={newEmailState !== "valid" || emailPending}
+                      className={`mt-3 rounded-full px-4 py-2 text-xs font-bold transition disabled:cursor-not-allowed ${
+                        newEmailState === "valid" && !emailPending
+                          ? "bg-[#2f80ed] text-white shadow-md shadow-blue-200 hover:bg-[#1769d2]"
+                          : "border border-[#dfe5ed] bg-[#f5f7fa] text-[#9aa1ab]"
+                      }`}
                     >
-                      Change Email
+                      {emailPending ? "Sending..." : "Change Email"}
                     </button>
                   </label>
 

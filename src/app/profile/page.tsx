@@ -4,7 +4,9 @@ import { getSelfProfileResult } from "@/lib/profiles/profile-service";
 import { signAvatarPath } from "@/lib/storage/storage-service";
 import { redirect } from "next/navigation";
 
-export default async function ProfilePage() {
+export default async function ProfilePage(props?: {
+  searchParams: Promise<{ state?: string | string[] }>;
+}) {
   await requireAppProfile();
   const result = await getSelfProfileResult();
   if (result.status === "missing") {
@@ -15,5 +17,6 @@ export default async function ProfilePage() {
   }
   const model = result.profile;
   model.avatarUrl = await signAvatarPath(model.avatarPath);
-  return <EmployeeProfileSettings profile={model} />;
+  const state = props ? (await props.searchParams).state : undefined;
+  return <EmployeeProfileSettings profile={model} emailChanged={state === "email_changed"} />;
 }
