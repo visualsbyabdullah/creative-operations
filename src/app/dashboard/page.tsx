@@ -7,10 +7,10 @@ import { getManagementDashboard } from "@/lib/dashboard/dashboard-service";
 
 export default async function DashboardPage() {
   const profile = await requireAppProfile();
-  const tasks = await listTasks();
-  const backendTasks = tasks.ok ? tasks.data : [];
 
   if (profile.role === "graphic_designer" || profile.role === "video_editor") {
+    const tasks = await listTasks();
+    const backendTasks = tasks.ok ? tasks.data : [];
     return <EmployeeRoleDashboard profile={profile} backendTasks={backendTasks} />;
   }
 

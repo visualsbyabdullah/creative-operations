@@ -1,7 +1,7 @@
 "use server";
 
 import {
-  getActiveProfile,
+  getActiveProfileForUser,
   getRoleDestination,
 } from "@/lib/auth/authorization";
 import { modeFromRememberMe } from "@/lib/auth/persistence";
@@ -198,7 +198,7 @@ export async function login(
   const supabase = await createClient(
     persistenceMode,
   );
-  const { error } =
+  const { data: signInData, error } =
     await supabase.auth.signInWithPassword({
       email,
       password,
@@ -223,7 +223,9 @@ export async function login(
     };
   }
 
-  const profileResult = await getActiveProfile();
+  const profileResult = signInData.user
+    ? await getActiveProfileForUser(supabase, signInData.user)
+    : { status: "verification_failed" as const };
 
   if (profileResult.status !== "active") {
     await supabase.auth.signOut({
@@ -260,23 +262,25 @@ export async function login(
     };
   }
 
-  await clearRateLimit(
-    "login_targeted",
-    context,
-    [emailId],
-  );
   (await cookies()).set(invitationCookieDeletionOptions());
-  await auditSecurityEvent(
-    context,
-    "login_succeeded",
-    "succeeded",
-    {
-      provider: "supabase",
-      persistence_mode: persistenceMode,
-      role: profileResult.profile.role,
-    },
-    profileResult.profile.id,
-  );
+  await Promise.all([
+    clearRateLimit(
+      "login_targeted",
+      context,
+      [emailId],
+    ),
+    auditSecurityEvent(
+      context,
+      "login_succeeded",
+      "succeeded",
+      {
+        provider: "supabase",
+        persistence_mode: persistenceMode,
+        role: profileResult.profile.role,
+      },
+      profileResult.profile.id,
+    ),
+  ]);
 
   return {
     success: true,

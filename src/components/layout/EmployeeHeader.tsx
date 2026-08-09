@@ -34,6 +34,9 @@ type EmployeeHeaderProps = {
   workspaceLabel?: string;
 };
 
+const UNREAD_CACHE_MS = 60_000;
+let unreadCache: { value: number; updatedAt: number } | null = null;
+
 export default function EmployeeHeader({
   employee,
   variant = "employee",
@@ -130,13 +133,27 @@ export default function EmployeeHeader({
 
   useEffect(() => {
     let active = true;
-    void getUnreadNotificationCountAction().then((result) => {
-      if (active && result.ok) setUnreadCount(result.data);
-    });
+    async function refreshUnread(force = false) {
+      if (!force && unreadCache && Date.now() - unreadCache.updatedAt < UNREAD_CACHE_MS) {
+        setUnreadCount(unreadCache.value);
+        return;
+      }
+      const result = await getUnreadNotificationCountAction();
+      if (active && result.ok) {
+        unreadCache = { value: result.data, updatedAt: Date.now() };
+        setUnreadCount(result.data);
+      }
+    }
+    function handleFocus() {
+      void refreshUnread();
+    }
+    void refreshUnread();
+    window.addEventListener("focus", handleFocus);
     return () => {
       active = false;
+      window.removeEventListener("focus", handleFocus);
     };
-  }, [pathname]);
+  }, []);
 
   return (
     <>

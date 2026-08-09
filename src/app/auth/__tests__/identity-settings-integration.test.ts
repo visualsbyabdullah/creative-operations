@@ -60,4 +60,22 @@ describe("identity and settings integration", () => {
     expect(component).toContain("if (result.ok)");
     expect(component).not.toContain('setSaveMessage(\n      "Password successfully updated."');
   });
+
+  it("deduplicates verified profile reads and avoids unused management task data", () => {
+    const authorization = read("src/lib/auth/authorization.ts");
+    const storage = read("src/lib/storage/storage-service.ts");
+    const loginActions = read("src/app/auth/actions.ts");
+    const dashboard = read("src/app/dashboard/page.tsx");
+    expect(authorization).toContain("export const getActiveProfile = cache(lookupActiveProfile)");
+    expect(storage).toContain("export const signAvatarPath = cache(signAvatarPathUncached)");
+    expect(loginActions).toContain("getActiveProfileForUser(supabase, signInData.user)");
+    expect(dashboard.indexOf("const tasks = await listTasks()"))
+      .toBeGreaterThan(dashboard.indexOf('profile.role === "graphic_designer"'));
+  });
+
+  it("keeps the login form free of the WebGL background", () => {
+    const login = read("src/components/auth/LoginForm.tsx");
+    expect(login).not.toContain("PixelBlast");
+    expect(login).toContain("radial-gradient");
+  });
 });

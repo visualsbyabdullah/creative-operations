@@ -15,7 +15,6 @@ import {
   Palette,
 } from "lucide-react";
 
-import PixelBlast from "@/components/ui/PixelBlast";
 import { login } from "@/app/auth/actions";
 
 export default function LoginForm({
@@ -69,27 +68,9 @@ export default function LoginForm({
 
   return (
     <main className="relative isolate flex min-h-screen min-h-[100dvh] items-center justify-center overflow-hidden bg-[#242424] px-5 py-10 sm:px-8">
-      <div className="fixed inset-0 z-0 h-screen h-[100dvh] w-screen overflow-hidden">
-        <PixelBlast
-          className="absolute inset-0 h-full w-full"
-          variant="circle"
-          pixelSize={6}
-          color="#4A9CFF"
-          patternScale={3}
-          patternDensity={1.2}
-          pixelSizeJitter={0.5}
-          enableRipples
-          rippleSpeed={0.4}
-          rippleThickness={0.12}
-          rippleIntensityScale={1.5}
-          liquid
-          liquidStrength={0.12}
-          liquidRadius={1.2}
-          liquidWobbleSpeed={5}
-          speed={0.6}
-          edgeFade={0}
-          transparent
-        />
+      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden="true">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_20%,rgba(74,156,255,0.22),transparent_32%),radial-gradient(circle_at_78%_76%,rgba(47,128,237,0.16),transparent_30%)]" />
+        <div className="absolute inset-0 opacity-30 [background-image:radial-gradient(circle,rgba(255,255,255,0.28)_1px,transparent_1px)] [background-size:22px_22px]" />
       </div>
 
       <section className="relative z-10 w-full max-w-[440px] rounded-[30px] border border-white/80 bg-white p-8 shadow-[0_32px_100px_rgba(0,0,0,0.34)] sm:p-9">

@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { cache } from "react";
 import { getActiveProfile } from "@/lib/auth/authorization";
 import {
   businessRateLimitDenied,
@@ -81,7 +82,7 @@ export async function removeAvatar(expectedUpdatedAt:unknown):Promise<ActionResu
   return{ok:true,data:true};
 }
 
-export async function signAvatarPath(path:string|null):Promise<string|null>{
+async function signAvatarPathUncached(path:string|null):Promise<string|null>{
   if(!path)return null;
   const actor=await getActiveProfile();
   if(actor.status!=="active")return null;
@@ -91,6 +92,8 @@ export async function signAvatarPath(path:string|null):Promise<string|null>{
   const result=await client.storage.from("avatars").createSignedUrl(path,300);
   return result.error?null:result.data.signedUrl;
 }
+
+export const signAvatarPath = cache(signAvatarPathUncached);
 
 export async function uploadAttachment(formData:FormData):Promise<ActionResult<{id:string}>>{
   const actor=await getActiveProfile();

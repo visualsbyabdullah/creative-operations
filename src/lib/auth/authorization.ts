@@ -1,4 +1,6 @@
 import type { User } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { cache } from "react";
 
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -51,7 +53,23 @@ export type ProfileLookup =
         | "invalid_role";
     };
 
-export async function getActiveProfile(): Promise<ProfileLookup> {
+export async function getActiveProfileForUser(
+  supabase: SupabaseClient,
+  user: User,
+): Promise<ProfileLookup> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select(PROFILE_COLUMNS)
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (error || !data) return { status: "missing" };
+  if (!isAppRole(data.role)) return { status: "invalid_role" };
+  if (data.is_active !== true) return { status: "inactive" };
+  return { status: "active", profile: data as EmployeeProfile };
+}
+
+async function lookupActiveProfile(): Promise<ProfileLookup> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -71,26 +89,7 @@ export async function getActiveProfile(): Promise<ProfileLookup> {
     };
   }
 
-  const { data, error } = await supabase
-    .from("profiles")
-    .select(PROFILE_COLUMNS)
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (error || !data) {
-    return { status: "missing" };
-  }
-
-  if (!isAppRole(data.role)) {
-    return { status: "invalid_role" };
-  }
-
-  if (data.is_active !== true) {
-    return { status: "inactive" };
-  }
-
-  return {
-    status: "active",
-    profile: data as EmployeeProfile,
-  };
+  return getActiveProfileForUser(supabase, user);
 }
+
+export const getActiveProfile = cache(lookupActiveProfile);
