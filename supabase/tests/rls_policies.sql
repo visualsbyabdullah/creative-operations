@@ -4,7 +4,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select extensions.plan(63);
+select extensions.plan(64);
 
 select extensions.is(
   (
@@ -312,6 +312,18 @@ select extensions.is(
   (select pg_catalog.count(*)::integer from public.brands),
   1,
   'employee sees a brand only through an assigned task'
+);
+select extensions.is(
+  (
+    select pg_catalog.count(*)::integer
+    from (
+      select avatar_path
+      from public.profiles
+      where id = '10000000-0000-4000-8000-000000000002'
+    ) as self_profile
+  ),
+  1,
+  'employee can read the complete approved self-profile projection'
 );
 
 select pg_catalog.set_config(

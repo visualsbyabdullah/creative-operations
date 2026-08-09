@@ -1,6 +1,6 @@
 import { getActiveProfile } from "@/lib/auth/authorization";
 import { mapSelfProfile } from "@/lib/profiles/profile-mappers";
-import { readSelfProfile, updateSelfSettings } from "@/lib/profiles/profile-repository";
+import { readSelfProfileResult, updateSelfSettings } from "@/lib/profiles/profile-repository";
 import { parseSelfProfileUpdate } from "@/lib/profiles/profile-schemas";
 import type { ActionResult } from "@/lib/shared/action-result";
 import {
@@ -8,11 +8,34 @@ import {
   enforceBusinessRateLimit,
 } from "@/lib/security/business-rate-limit";
 
-export async function getSelfProfile() {
+export async function getSelfProfileResult() {
   const actor = await getActiveProfile();
-  if (actor.status !== "active") return null;
-  const result = await readSelfProfile(actor.profile.id);
-  return result ? mapSelfProfile(result.profile, result.preferences) : null;
+  if (actor.status !== "active") {
+    return { status: "error" as const };
+  }
+  const result = await readSelfProfileResult(actor.profile.id);
+  if (result.status === "error") {
+    console.error("Self-profile read unavailable.", {
+      source: result.source,
+      code: result.code,
+    });
+    return { status: "error" as const };
+  }
+  if (result.status === "missing") return result;
+  return {
+    status: "ok" as const,
+    profile: mapSelfProfile(
+      result.profile,
+      result.preferences,
+    ),
+  };
+}
+
+export async function getSelfProfile() {
+  const result = await getSelfProfileResult();
+  return result.status === "ok"
+    ? result.profile
+    : null;
 }
 
 export async function saveSelfProfile(input: unknown): Promise<ActionResult<true>> {
