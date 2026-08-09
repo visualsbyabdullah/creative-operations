@@ -11,12 +11,57 @@ function mapTask(row: Record<string, unknown>): TaskView {
     id: String(row.id), brandId: String(row.brand_id), brandName: String(row.brand_name),
     title: String(row.title), department: row.department as TaskView["department"],
     contentType: String(row.content_type), scheduledDate: String(row.scheduled_date),
-    deadlineAt: String(row.deadline_at), status: row.status as TaskView["status"],
+    deadlineAt: row.deadline_at
+      ? String(row.deadline_at)
+      : `${String(row.scheduled_date)}T12:00:00.000Z`,
+    status: row.status as TaskView["status"],
     priority: row.priority as TaskView["priority"], description: String(row.description ?? ""),
     referenceUrl: row.reference_url as string | null, delayReason: row.delay_reason as string | null,
     updatedAt: String(row.updated_at), assigneeIds: row.assignee_ids as string[],
     assigneeNames: row.assignee_names as string[],
+    source: row.task_source === "self_created" ? "self_created" : "management_assigned",
   };
+}
+
+export async function getSelfTaskOptions(): Promise<TaskOption[]> {
+  const actor = await getActiveProfile();
+  if (actor.status !== "active" || !["graphic_designer", "video_editor"].includes(actor.profile.role)) return [];
+  const client = await createClient();
+  const { data, error } = await client.rpc("get_self_task_brand_options_v1");
+  return error ? [] : (data ?? []).map((row: { id: string; name: string }) => ({
+    id: String(row.id), name: String(row.name),
+  }));
+}
+
+export async function createSelfTask(input: unknown): Promise<ActionResult<string>> {
+  const item = input && typeof input === "object" && !Array.isArray(input)
+    ? input as Record<string, unknown> : null;
+  const allowed = new Set(["brandId", "title", "scheduledDate", "priority", "description"]);
+  const priorities = new Set(["low", "medium", "high", "urgent"]);
+  if (!item || Object.keys(item).some((key) => !allowed.has(key)) ||
+    typeof item.brandId !== "string" || !/^[0-9a-f-]{36}$/iu.test(item.brandId) ||
+    typeof item.title !== "string" || item.title.trim().length < 1 || item.title.trim().length > 160 ||
+    typeof item.scheduledDate !== "string" || !/^\d{4}-\d{2}-\d{2}$/u.test(item.scheduledDate) ||
+    !priorities.has(String(item.priority)) || typeof item.description !== "string" || item.description.length > 5000) {
+    return { ok: false, code: "validation_failed" };
+  }
+  const actor = await getActiveProfile();
+  if (actor.status !== "active" || !["graphic_designer", "video_editor"].includes(actor.profile.role)) {
+    return { ok: false, code: "forbidden" };
+  }
+  const client = await createClient();
+  const { data, error } = await client.rpc("create_self_task_v1", {
+    p_brand_id: item.brandId,
+    p_title: item.title.trim(),
+    p_scheduled_date: item.scheduledDate,
+    p_priority: item.priority,
+    p_description: item.description,
+  });
+  if (error?.code === "42501") return { ok: false, code: "forbidden" };
+  if (error?.code === "22023") return { ok: false, code: "validation_failed" };
+  return error || typeof data !== "string"
+    ? { ok: false, code: "temporarily_unavailable" }
+    : { ok: true, data };
 }
 
 export async function listTasks(): Promise<ActionResult<TaskView[]>> {

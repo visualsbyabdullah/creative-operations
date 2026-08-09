@@ -10,7 +10,7 @@ import {
 } from "@/types/auth";
 
 export const PROFILE_COLUMNS =
-  "id, email, full_name, role, department, job_title, avatar_path, avatar_url, is_active, created_at, updated_at";
+  "id, email, full_name, role, department, job_title, avatar_path, avatar_url, timezone, is_active, created_at, updated_at";
 
 export const isManagementRole = (role: AppRole) =>
   role === "manager" || role === "hr";

@@ -19,6 +19,7 @@ export type TaskView = {
   updatedAt: string;
   assigneeIds: string[];
   assigneeNames: string[];
+  source?: "management_assigned" | "self_created";
 };
 export type TaskOption = { id: string; name: string };
 export type AssigneeOption = TaskOption & {

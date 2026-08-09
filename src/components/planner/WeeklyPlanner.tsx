@@ -62,6 +62,7 @@ type PlannerTask = {
   updatedAt?: string;
   deadlineAt?: string;
   canonicalStatus?: TaskView["status"];
+  source?: TaskView["source"];
 };
 
 type WeekDay = "Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday";
@@ -266,7 +267,7 @@ function PlatformBadge({ platform }: { platform: Platform }) {
 }
 
 function mapBackendTask(task: TaskView): PlannerTask {
-  const date = new Date(task.deadlineAt);
+  const date = new Date(`${task.scheduledDate}T12:00:00.000Z`);
   const day = date.toLocaleDateString("en-US", { weekday: "long" }) as WeekDay;
   const status: TaskStatus = task.status === "in_progress" ? "In Progress"
     : task.status === "submitted" ? "In Review"
@@ -278,11 +279,14 @@ function mapBackendTask(task: TaskView): PlannerTask {
     contentType: task.contentType, platform: [],
     assignee: task.assigneeNames.join(", ") || "Unassigned",
     day: weekDays.includes(day) ? day : "Monday",
-    time: date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }),
+    time: task.deadlineAt
+      ? new Date(task.deadlineAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+      : "No deadline",
     status, link: task.referenceUrl ?? undefined, delayReason: task.delayReason ?? undefined,
     brandId: task.brandId, assigneeIds: task.assigneeIds,
-    updatedAt: task.updatedAt, deadlineAt: task.deadlineAt,
+    updatedAt: task.updatedAt, deadlineAt: task.deadlineAt ?? undefined,
     canonicalStatus: task.status,
+    source: task.source,
   };
 }
 
@@ -905,6 +909,7 @@ export default function WeeklyPlanner({
                   ["Department", selectedTask.department],
                   ["Content Type", selectedTask.contentType],
                   ["Assignee", selectedTask.assignee],
+                  ["Source", selectedTask.source === "self_created" ? "Employee Added" : "Management Assigned"],
                   ["Schedule", `${selectedTask.day}, ${selectedTask.time}`],
                 ].map(([label, value]) => (
                   <div key={label} className="rounded-2xl bg-[#f7f9fc] p-4">

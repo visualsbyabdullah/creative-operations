@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import {
   createAssignedTask,
+  createSelfTask,
   editAssignedTask,
   submitTaskWork,
   transitionTask,
@@ -13,6 +14,16 @@ export async function transitionTaskAction(input: unknown) {
   if (result.ok) {
     revalidatePath("/tasks");
     revalidatePath("/planner");
+  }
+  return result;
+}
+
+export async function createSelfTaskAction(input: unknown) {
+  const result = await createSelfTask(input);
+  if (result.ok) {
+    revalidatePath("/tasks");
+    revalidatePath("/planner");
+    revalidatePath("/dashboard");
   }
   return result;
 }

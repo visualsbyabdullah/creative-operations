@@ -112,7 +112,7 @@ function mapBackendTask(task: TaskView): Task {
   const status: TaskStatus =
     task.delayReason || (
       !["completed", "archived"].includes(task.status) &&
-      new Date(task.deadlineAt).getTime() < Date.now()
+      task.deadlineAt !== null && new Date(task.deadlineAt).getTime() < Date.now()
     ) ? "Delayed"
       : task.status === "completed" ? "Published"
       : task.status === "archived" ? "Approved"
@@ -125,9 +125,12 @@ function mapBackendTask(task: TaskView): Task {
     initials: task.brandName.split(/\s+/).map((part) => part[0]).join("").slice(0,2).toUpperCase(),
     content: task.title,
     platform: task.contentType,
-    deadline: new Intl.DateTimeFormat("en-US", {
-      month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
-    }).format(new Date(task.deadlineAt)),
+    deadline: task.deadlineAt
+      ? new Intl.DateTimeFormat("en-US", {
+        month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
+      }).format(new Date(task.deadlineAt))
+      : new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" })
+        .format(new Date(`${task.scheduledDate}T12:00:00.000Z`)),
     status,
   };
 }

@@ -282,8 +282,10 @@ function mapTask(task: TaskView): ScheduleTask | null {
     platforms: [],
     day: day as WeekDay,
     date: new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short" }).format(date),
-    deadline: new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" })
-      .format(new Date(task.deadlineAt)),
+    deadline: task.deadlineAt
+      ? new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" })
+        .format(new Date(task.deadlineAt))
+      : "No deadline",
     status: task.delayReason ? "Delayed" : canonicalStatus[task.status],
     delayReason: task.delayReason ?? undefined,
   };
