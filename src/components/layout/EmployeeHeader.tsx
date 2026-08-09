@@ -25,6 +25,7 @@ type HeaderEmployee = {
   initials: string;
   name: string;
   role: string;
+  avatarUrl?: string | null;
 };
 
 type EmployeeHeaderProps = {
@@ -237,8 +238,11 @@ export default function EmployeeHeader({
                 aria-haspopup="menu"
                 className="flex items-center gap-3 rounded-full"
               >
-                <div className="grid size-10 place-items-center rounded-full bg-[#1d2430] text-sm font-bold text-white">
-                  {currentEmployee.initials}
+                <div
+                  className="grid size-10 place-items-center rounded-full bg-cover bg-center bg-[#1d2430] text-sm font-bold text-white"
+                  style={currentEmployee.avatarUrl ? { backgroundImage: `url("${currentEmployee.avatarUrl}")` } : undefined}
+                >
+                  {currentEmployee.avatarUrl ? null : currentEmployee.initials}
                 </div>
 
                 <div className="hidden text-left xl:block">

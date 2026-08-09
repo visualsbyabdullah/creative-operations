@@ -19,6 +19,7 @@ import {
 import {
   assertInvitationConfiguration,
   createInvitationState,
+  invitationCookieDeletionOptions,
   invitationCookieOptions,
 } from "@/lib/auth/invitation-state";
 import {
@@ -162,6 +163,7 @@ export async function GET(request: Request) {
     new URL("/forgot-password?state=invalid_link", trustedOrigin),
   );
   response.cookies.set(recoveryCookieDeletionOptions());
+  response.cookies.set(invitationCookieDeletionOptions());
   response.headers.set("Cache-Control", "private, no-store");
   response.headers.set("x-request-id", context.requestId);
   return response;

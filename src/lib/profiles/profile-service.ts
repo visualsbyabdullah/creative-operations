@@ -65,3 +65,50 @@ export async function saveSelfProfile(input: unknown): Promise<ActionResult<true
   if (error.code === "40001") return { ok: false, code: "stale_update" };
   return { ok: false, code: "temporarily_unavailable" };
 }
+
+export async function requestSelfEmailChange(input: unknown): Promise<ActionResult<true>> {
+  const email = input && typeof input === "object" && !Array.isArray(input) &&
+    Object.keys(input).every((key) => key === "email") &&
+    typeof (input as Record<string, unknown>).email === "string"
+    ? String((input as Record<string, unknown>).email).trim().toLowerCase()
+    : "";
+  if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(email)) {
+    return { ok: false, code: "validation_failed" };
+  }
+  const actor = await getActiveProfile();
+  if (actor.status !== "active") return { ok: false, code: "unauthenticated" };
+  if (actor.profile.email.toLowerCase() === email) {
+    return { ok: false, code: "validation_failed" };
+  }
+  const limit = await enforceBusinessRateLimit("profile_write", actor.profile.id);
+  if (businessRateLimitDenied(limit)) return { ok: false, code: "rate_limited" };
+  const { createClient } = await import("@/lib/supabase/server");
+  const client = await createClient();
+  const { error } = await client.auth.updateUser({ email });
+  return error ? { ok: false, code: "temporarily_unavailable" } : { ok: true, data: true };
+}
+
+export async function changeSelfPassword(input: unknown): Promise<ActionResult<true>> {
+  const record = input && typeof input === "object" && !Array.isArray(input) &&
+    Object.keys(input).every((key) => ["currentPassword", "newPassword", "confirmation"].includes(key))
+    ? input as Record<string, unknown> : null;
+  const currentPassword = typeof record?.currentPassword === "string" ? record.currentPassword : "";
+  const newPassword = typeof record?.newPassword === "string" ? record.newPassword : "";
+  const confirmation = typeof record?.confirmation === "string" ? record.confirmation : "";
+  if (!currentPassword || newPassword !== confirmation || newPassword.length < 12 || newPassword.length > 4096) {
+    return { ok: false, code: "validation_failed" };
+  }
+  const actor = await getActiveProfile();
+  if (actor.status !== "active") return { ok: false, code: "unauthenticated" };
+  const limit = await enforceBusinessRateLimit("profile_write", actor.profile.id);
+  if (businessRateLimitDenied(limit)) return { ok: false, code: "rate_limited" };
+  const { createClient } = await import("@/lib/supabase/server");
+  const client = await createClient();
+  const verified = await client.auth.signInWithPassword({
+    email: actor.profile.email,
+    password: currentPassword,
+  });
+  if (verified.error) return { ok: false, code: "forbidden" };
+  const { error } = await client.auth.updateUser({ password: newPassword });
+  return error ? { ok: false, code: "temporarily_unavailable" } : { ok: true, data: true };
+}

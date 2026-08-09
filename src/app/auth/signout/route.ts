@@ -8,6 +8,7 @@ import {
   getTrustedAppOrigin,
   recoveryCookieDeletionOptions,
 } from "@/lib/auth/recovery-state";
+import { invitationCookieDeletionOptions } from "@/lib/auth/invitation-state";
 import {
   auditSecurityEvent,
   securityContext,
@@ -84,6 +85,9 @@ export async function GET(request: Request) {
   }
   response.cookies.set(
     recoveryCookieDeletionOptions(),
+  );
+  response.cookies.set(
+    invitationCookieDeletionOptions(),
   );
 
   return response;

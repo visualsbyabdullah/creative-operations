@@ -4,7 +4,12 @@ import "./globals.css";
 
 import AppProviders from "./providers";
 import { getActiveProfile } from "@/lib/auth/authorization";
-import type { EmployeeProfile } from "@/config/employee";
+import {
+  departmentLabel,
+  roleLabel,
+  type EmployeeProfile,
+} from "@/config/employee";
+import { signAvatarPath } from "@/lib/storage/storage-service";
 export const metadata: Metadata = {
   title: "Creative Operations",
   description: "Creative team planning, tracking and reporting platform",
@@ -20,14 +25,15 @@ export default async function RootLayout({
   if (result.status === "active") {
     const profile = result.profile;
     const name = profile.full_name.trim();
-    const department = profile.role === "video_editor" ? "Video Editing" : "Graphic Design";
+    const avatarUrl = await signAvatarPath(profile.avatar_path);
     initialEmployee = {
       id: profile.id,
       name,
       firstName: name.split(/\s+/u)[0] || "Employee",
       initials: name.split(/\s+/u).map((word) => word[0]).join("").slice(0,2).toUpperCase() || "EP",
-      role: profile.role === "video_editor" ? "Video Editor" : "Graphic Designer",
-      department,
+      role: roleLabel(profile.role),
+      department: departmentLabel(profile.role),
+      avatarUrl,
     };
   }
   return (

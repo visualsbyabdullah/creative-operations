@@ -21,7 +21,7 @@ import {
 } from "@/app/employees/actions";
 import { inviteEmployeeAction } from "@/app/employees/invite-actions";
 
-type Role = "Manager" | "HR" | "Graphic Designer" | "Video Editor";
+type Role = "Graphic Designer" | "Video Editor";
 type Status = "Active" | "Inactive";
 type WorkloadStatus = "On Track" | "Review Pending" | "Delayed";
 
@@ -43,8 +43,6 @@ type Member = {
 type Draft = Pick<Member, "name" | "email" | "role" | "status">;
 
 const roleOptions = [
-  { label: "Manager", value: "Manager" },
-  { label: "HR", value: "HR" },
   { label: "Graphic Designer", value: "Graphic Designer" },
   { label: "Video Editor", value: "Video Editor" },
 ] satisfies { label: string; value: Role }[];
@@ -63,8 +61,7 @@ const emptyDraft: Draft = {
 
 function roleLabel(role: EmployeeDirectoryRow["role"]): Role {
   return role === "graphic_designer" ? "Graphic Designer"
-    : role === "video_editor" ? "Video Editor"
-      : role === "hr" ? "HR" : "Manager";
+    : "Video Editor";
 }
 
 function mapRow(row: EmployeeDirectoryRow): Member {
@@ -120,8 +117,7 @@ export default function ManagementEmployees({
     }
 
     const role = draft.role === "Graphic Designer" ? "graphic_designer"
-      : draft.role === "Video Editor" ? "video_editor"
-        : draft.role === "HR" ? "hr" : "manager";
+      : "video_editor";
     const department = role === "graphic_designer" ? "graphic_design"
       : role === "video_editor" ? "video_editing" : null;
     const result = await inviteEmployeeAction({
@@ -166,8 +162,7 @@ export default function ManagementEmployees({
     const detail = await getEmployeeDetailAction({ profileId: selected.id });
     if (!detail.ok) return;
     const role = draft.role === "Graphic Designer" ? "graphic_designer"
-      : draft.role === "Video Editor" ? "video_editor"
-        : draft.role === "HR" ? "hr" : "manager";
+      : "video_editor";
     const department = role === "graphic_designer" ? "graphic_design"
       : role === "video_editor" ? "video_editing" : null;
     const result = await updateManagedEmployeeAction({

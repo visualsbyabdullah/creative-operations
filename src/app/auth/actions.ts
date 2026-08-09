@@ -30,6 +30,7 @@ import {
   createClient,
 } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
+import { invitationCookieDeletionOptions } from "@/lib/auth/invitation-state";
 
 const GENERIC_LOGIN_ERROR =
   "Unable to sign in with those credentials.";
@@ -264,6 +265,7 @@ export async function login(
     context,
     [emailId],
   );
+  (await cookies()).set(invitationCookieDeletionOptions());
   await auditSecurityEvent(
     context,
     "login_succeeded",

@@ -19,7 +19,7 @@ export default function InvitationFragmentHandler({
   const router = useRouter();
   const [state, setState] = useState<
     "checking" | "ordinary" | "invalid"
-  >("checking");
+  >("ordinary");
 
   useEffect(() => {
     let active = true;
@@ -28,9 +28,10 @@ export default function InvitationFragmentHandler({
       const hash = window.location.hash;
 
       if (!hash) {
-        if (active) setState("ordinary");
         return;
       }
+
+      setState("checking");
 
       try {
         const supabase = createClient();

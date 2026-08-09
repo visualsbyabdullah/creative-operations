@@ -2,7 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 
-import { saveSelfProfile } from "@/lib/profiles/profile-service";
+import {
+  changeSelfPassword,
+  requestSelfEmailChange,
+  saveSelfProfile,
+} from "@/lib/profiles/profile-service";
 
 export async function updateOwnProfileAction(input: unknown) {
   const result = await saveSelfProfile(input);
@@ -12,4 +16,12 @@ export async function updateOwnProfileAction(input: unknown) {
     revalidatePath("/dashboard");
   }
   return result;
+}
+
+export async function requestEmailChangeAction(input: unknown) {
+  return requestSelfEmailChange(input);
+}
+
+export async function changePasswordAction(input: unknown) {
+  return changeSelfPassword(input);
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 
 import {
   Bell,
@@ -20,7 +21,12 @@ import {
 
 import EmployeeHeader from "@/components/layout/EmployeeHeader";
 import type { SelfProfile } from "@/lib/profiles/profile-types";
-import { updateOwnProfileAction } from "@/app/profile/actions";
+import {
+  changePasswordAction,
+  requestEmailChangeAction,
+  updateOwnProfileAction,
+} from "@/app/profile/actions";
+import { departmentLabel, roleLabel as getRoleLabel } from "@/config/employee";
 import {
   removeAvatarAction,
   uploadAvatarAction,
@@ -108,16 +114,17 @@ function SettingsRow({
 }
 
 export default function EmployeeProfileSettings({ profile }: { profile: SelfProfile }) {
+  const router = useRouter();
   const initials = profile.fullName.split(/\s+/u).map((word) => word[0]).join("").slice(0,2).toUpperCase();
-  const roleLabel = profile.role === "graphic_designer" ? "Graphic Designer" : "Video Editor";
+  const roleLabel = getRoleLabel(profile.role);
+  const management = profile.role === "manager" || profile.role === "hr";
   const [profileForm, setProfileForm] =
     useState({
       fullName: profile.fullName,
       email: profile.email,
       phone: profile.phone ?? "",
-      location: "Unavailable",
-      workingHours: "Unavailable",
-      bio: "Profile biography is not available in this release.",
+      timezone: profile.timezone ?? "UTC",
+      newEmail: "",
     });
 
   const [
@@ -194,7 +201,7 @@ export default function EmployeeProfileSettings({ profile }: { profile: SelfProf
       fullName: profileForm.fullName,
       avatarUrl: null,
       phone: profileForm.phone || null,
-      timezone: profile.timezone,
+      timezone: profileForm.timezone,
       preferences: {
         newTaskAssignments: notificationSettings.newTaskAssignments,
         deadlineReminders: notificationSettings.deadlineReminders,
@@ -214,12 +221,14 @@ export default function EmployeeProfileSettings({ profile }: { profile: SelfProf
           ? "Too many save attempts. Please try again later."
           : "Profile settings could not be saved.");
 
+    if (result.ok) router.refresh();
+
     window.setTimeout(() => {
       setSaveMessage("");
     }, 3000);
   }
 
-  function updatePassword() {
+  async function updatePassword() {
     if (
       !passwordForm.currentPassword ||
       !passwordForm.newPassword ||
@@ -243,31 +252,53 @@ export default function EmployeeProfileSettings({ profile }: { profile: SelfProf
       return;
     }
 
-    setPasswordForm({
-      currentPassword: "",
-      newPassword: "",
-      confirmPassword: "",
+    const result = await changePasswordAction({
+      currentPassword: passwordForm.currentPassword,
+      newPassword: passwordForm.newPassword,
+      confirmation: passwordForm.confirmPassword,
     });
-
-    setSaveMessage(
-      "Password successfully updated.",
-    );
+    if (result.ok) {
+      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    }
+    setSaveMessage(result.ok
+      ? "Password successfully updated."
+      : result.code === "forbidden"
+        ? "The current password is incorrect."
+        : result.code === "validation_failed"
+          ? "Use a matching new password with at least 12 characters."
+          : "Password could not be updated.");
 
     window.setTimeout(() => {
       setSaveMessage("");
     }, 3000);
   }
 
+  async function changeEmail() {
+    const result = await requestEmailChangeAction({ email: profileForm.newEmail });
+    setSaveMessage(result.ok
+      ? "Check your email to confirm the new address."
+      : result.code === "validation_failed"
+        ? "Enter a valid new email address."
+        : result.code === "rate_limited"
+          ? "Too many email change attempts. Please try again later."
+          : "Email change could not be started.");
+    if (result.ok) setProfileForm((current) => ({ ...current, newEmail: "" }));
+  }
+
   return (
     <main className="min-h-screen bg-[#e7ebf2] p-3 sm:p-6 xl:p-10">
       <section className="mx-auto w-full max-w-[1600px] overflow-hidden rounded-[26px] border border-white/80 bg-[#fbfcfe] shadow-[0_30px_80px_rgba(50,63,86,0.10)]">
-        <EmployeeHeader employee={{ initials, name: profile.fullName, role: roleLabel }} />
+        <EmployeeHeader
+          employee={{ initials, name: profile.fullName, role: roleLabel, avatarUrl: profile.avatarUrl }}
+          variant={management ? "management" : "employee"}
+          workspaceLabel={management ? "Management workspace" : "Creative operations workspace"}
+        />
 
         <div className="px-4 py-7 sm:px-6 sm:py-8">
           <section className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
             <div>
               <p className="text-sm font-semibold text-[#2f80ed]">
-                Personal workspace
+                {management ? "Management workspace" : "Personal workspace"}
               </p>
 
               <h1 className="mt-2 text-3xl font-semibold tracking-[-0.045em] sm:text-4xl">
@@ -275,9 +306,7 @@ export default function EmployeeProfileSettings({ profile }: { profile: SelfProf
               </h1>
 
               <p className="mt-2 max-w-2xl text-sm leading-6 text-[#777e89]">
-                Apni profile information,
-                notification preferences aur account
-                security manage karo.
+                Manage your profile, notification preferences, and account security.
               </p>
             </div>
 
@@ -337,7 +366,7 @@ export default function EmployeeProfileSettings({ profile }: { profile: SelfProf
                 </p>
 
                 <p className="mt-2 text-xs text-[#9299a4]">
-                  Creative Department
+                  {departmentLabel(profile.role)}
                 </p>
 
                 <div className="mt-5 border-t border-[#f0f2f5] pt-5">
@@ -392,11 +421,11 @@ export default function EmployeeProfileSettings({ profile }: { profile: SelfProf
 
                     <div>
                       <p className="text-[10px] text-[#9299a4]">
-                        Working hours
+                        Department
                       </p>
 
                       <p className="mt-1 text-xs font-bold">
-                        {profileForm.workingHours}
+                        {profile.department ? departmentLabel(profile.role) : "Management"}
                       </p>
                     </div>
                   </div>
@@ -409,11 +438,11 @@ export default function EmployeeProfileSettings({ profile }: { profile: SelfProf
 
                     <div>
                       <p className="text-[10px] text-[#9299a4]">
-                        Location
+                        Manager assignment
                       </p>
 
                       <p className="mt-1 text-xs font-bold">
-                        {profileForm.location}
+                        {profile.managerId ?? "Not assigned"}
                       </p>
                     </div>
                   </div>
@@ -470,7 +499,7 @@ export default function EmployeeProfileSettings({ profile }: { profile: SelfProf
 
                   <label>
                     <span className="text-xs font-bold text-[#4d5560]">
-                      Email address
+                      Current email
                     </span>
 
                     <div className="mt-2 flex items-center gap-3 rounded-2xl border border-[#e5e9ef] px-4">
@@ -486,6 +515,29 @@ export default function EmployeeProfileSettings({ profile }: { profile: SelfProf
                         className="h-12 w-full bg-transparent text-sm outline-none"
                       />
                     </div>
+                  </label>
+
+                  <label>
+                    <span className="text-xs font-bold text-[#4d5560]">
+                      New email
+                    </span>
+                    <div className="mt-2 flex items-center gap-3 rounded-2xl border border-[#e5e9ef] px-4">
+                      <Mail size={15} className="shrink-0 text-[#9299a4]" />
+                      <input
+                        type="email"
+                        value={profileForm.newEmail}
+                        onChange={(event) => setProfileForm((current) => ({ ...current, newEmail: event.target.value }))}
+                        placeholder="Enter a new email address"
+                        className="h-12 w-full bg-transparent text-sm outline-none"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={changeEmail}
+                      className="mt-3 rounded-full border border-[#dfe5ed] px-4 py-2 text-xs font-bold text-[#4f5762] hover:border-[#2f80ed] hover:text-[#2f80ed]"
+                    >
+                      Change Email
+                    </button>
                   </label>
 
                   <label>
@@ -517,7 +569,7 @@ export default function EmployeeProfileSettings({ profile }: { profile: SelfProf
 
                   <label>
                     <span className="text-xs font-bold text-[#4d5560]">
-                      Location
+                      Timezone
                     </span>
 
                     <div className="mt-2 flex items-center gap-3 rounded-2xl border border-[#e5e9ef] px-4">
@@ -527,25 +579,14 @@ export default function EmployeeProfileSettings({ profile }: { profile: SelfProf
                       />
 
                       <input
-                        value={profileForm.location}
-                        readOnly
+                        value={profileForm.timezone}
+                        onChange={(event) => setProfileForm((current) => ({ ...current, timezone: event.target.value }))}
+                        placeholder="UTC"
                         className="h-12 w-full bg-transparent text-sm outline-none"
                       />
                     </div>
                   </label>
 
-                  <label className="sm:col-span-2">
-                    <span className="text-xs font-bold text-[#4d5560]">
-                      Professional bio
-                    </span>
-
-                    <textarea
-                      rows={4}
-                      value={profileForm.bio}
-                      readOnly
-                      className="mt-2 w-full resize-none rounded-2xl border border-[#e5e9ef] p-4 text-sm leading-6 outline-none focus:border-[#2f80ed]"
-                    />
-                  </label>
                 </div>
               </section>
 
@@ -570,7 +611,7 @@ export default function EmployeeProfileSettings({ profile }: { profile: SelfProf
                   <SettingsRow
                     icon={Clock3}
                     title="Deadline reminders"
-                    description="Task deadline approach hone par reminder."
+                    description="Remind me when a task deadline is approaching."
                     checked={
                       notificationSettings.deadlineReminders
                     }
@@ -615,7 +656,7 @@ export default function EmployeeProfileSettings({ profile }: { profile: SelfProf
                   <SettingsRow
                     icon={BriefcaseBusiness}
                     title="Publishing updates"
-                    description="Content social platform par publish hone par."
+                    description="Notify me when approved content is published."
                     checked={
                       notificationSettings.publishingUpdates
                     }
@@ -814,7 +855,7 @@ export default function EmployeeProfileSettings({ profile }: { profile: SelfProf
                     className="flex min-w-[175px] items-center justify-center gap-2 rounded-full border border-[#dfe5ed] bg-white px-6 py-3 text-xs font-bold text-[#4f5762] transition hover:border-[#2f80ed] hover:text-[#2f80ed]"
                   >
                     <LockKeyhole size={15} />
-                    Update Password
+                    Change Password
                   </button>
 
                   <button
