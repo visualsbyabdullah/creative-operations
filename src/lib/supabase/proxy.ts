@@ -5,6 +5,43 @@ import {
   type NextRequest,
 } from "next/server";
 
+import { AUTH_PERSISTENCE_COOKIE_NAME } from "@/lib/auth/persistence";
+import {
+  AUTH_RECOVERY_COOKIE_NAME,
+  recoveryCookieDeletionOptions,
+  verifyRecoveryState,
+} from "@/lib/auth/recovery-state";
+import {
+  applyCookieBatch,
+  clearAuthPersistence,
+  readAuthPersistence,
+} from "@/lib/supabase/cookie-adapters";
+
+const PROTECTED_APPLICATION_ROUTES = [
+  "/",
+  "/dashboard",
+  "/tasks",
+  "/schedule",
+  "/submissions",
+  "/notifications",
+  "/profile",
+  "/settings",
+  "/brands",
+  "/planner",
+  "/employees",
+] as const;
+
+export function isProtectedApplicationRoute(
+  pathname: string,
+) {
+  return PROTECTED_APPLICATION_ROUTES.some(
+    (route) =>
+      pathname === route ||
+      (route !== "/" &&
+        pathname.startsWith(`${route}/`)),
+  );
+}
+
 export async function updateSession(
   request: NextRequest,
 ) {
@@ -22,6 +59,9 @@ export async function updateSession(
     return response;
   }
 
+  const persistenceMode =
+    readAuthPersistence(request.cookies);
+
   const supabase = createServerClient(
     supabaseUrl,
     supabaseKey,
@@ -31,8 +71,14 @@ export async function updateSession(
           return request.cookies.getAll();
         },
 
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(
+        setAll(cookiesToSet, headers) {
+          const transformed =
+            applyCookieBatch(
+              cookiesToSet,
+              persistenceMode,
+            );
+
+          transformed.forEach(
             ({
               name,
               value,
@@ -50,6 +96,15 @@ export async function updateSession(
               );
             },
           );
+
+          Object.entries(headers).forEach(
+            ([name, value]) => {
+              response.headers.set(
+                name,
+                value,
+              );
+            },
+          );
         },
       },
     },
@@ -61,30 +116,55 @@ export async function updateSession(
 
   const isAuthenticated =
     Boolean(claimsData?.claims?.sub);
-
   const pathname =
     request.nextUrl.pathname;
 
-  const protectedRoutes = [
-    "/dashboard",
-    "/tasks",
-    "/schedule",
-    "/submissions",
-    "/notifications",
-    "/profile",
-    "/settings",
-    "/brands",
-    "/planner",
-  ];
+  if (pathname === "/reset-password") {
+    const userId =
+      typeof claimsData?.claims?.sub ===
+      "string"
+        ? claimsData.claims.sub
+        : "";
+    const recoveryValue =
+      request.cookies.get(
+        AUTH_RECOVERY_COOKIE_NAME,
+      )?.value;
+
+    if (
+      recoveryValue &&
+      !verifyRecoveryState(
+        recoveryValue,
+        userId,
+      )
+    ) {
+      response.cookies.set(
+        recoveryCookieDeletionOptions(),
+      );
+    }
+  }
+
+  if (
+    !isAuthenticated &&
+    request.cookies.has(
+      AUTH_PERSISTENCE_COOKIE_NAME,
+    )
+  ) {
+    clearAuthPersistence({
+      getAll: () =>
+        request.cookies.getAll(),
+      set: (name, value, options) => {
+        request.cookies.set(name, value);
+        response.cookies.set(
+          name,
+          value,
+          options,
+        );
+      },
+    });
+  }
 
   const isProtectedRoute =
-    protectedRoutes.some(
-      (route) =>
-        pathname === route ||
-        pathname.startsWith(
-          `${route}/`,
-        ),
-    );
+    isProtectedApplicationRoute(pathname);
 
   if (
     isProtectedRoute &&
@@ -94,31 +174,36 @@ export async function updateSession(
       request.nextUrl.clone();
 
     loginUrl.pathname = "/login";
-    loginUrl.searchParams.set(
-      "next",
-      pathname,
-    );
+    loginUrl.search = "";
 
-    return NextResponse.redirect(
+    const redirectResponse =
+      NextResponse.redirect(
       loginUrl,
     );
-  }
 
-  if (
-    pathname === "/login" &&
-    isAuthenticated
-  ) {
-    const dashboardUrl =
-      request.nextUrl.clone();
+    response.cookies
+      .getAll()
+      .forEach((cookie) => {
+        redirectResponse.cookies.set(cookie);
+      });
 
-    dashboardUrl.pathname =
-      "/dashboard";
+    for (const headerName of [
+      "Cache-Control",
+      "Expires",
+      "Pragma",
+    ]) {
+      const value =
+        response.headers.get(headerName);
 
-    dashboardUrl.search = "";
+      if (value) {
+        redirectResponse.headers.set(
+          headerName,
+          value,
+        );
+      }
+    }
 
-    return NextResponse.redirect(
-      dashboardUrl,
-    );
+    return redirectResponse;
   }
 
   return response;

@@ -2,14 +2,21 @@
 
 import SystemTable from "@/components/ui/SystemTable";
 
-import { Check, Clock3, ExternalLink, RotateCcw, Send, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Check, Clock3, ExternalLink, FileText, RotateCcw, Send, Trash2, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import ManagementShell from "./ManagementShell";
+import type { SubmissionView } from "@/lib/submissions/submission-types";
+import { publishSubmissionAction, requestRevisionAction } from "@/app/submissions/actions";
+import {
+  listAttachmentsAction,
+  removeAttachmentAction,
+} from "@/app/attachments/actions";
+import type { AttachmentView } from "@/lib/storage/storage-service";
 
 type ReviewStatus = "In Review" | "Revision Required" | "Approved";
 
 type Submission = {
-  id: number;
+  id: number|string;
   title: string;
   brand: string;
   employee: string;
@@ -18,6 +25,9 @@ type Submission = {
   submitted: string;
   sourceLink: string;
   feedback?: string;
+  updatedAt?:string;
+  taskUpdatedAt?:string;
+  attachmentsImmutable?:boolean;
 };
 
 const initialItems: Submission[] = [
@@ -33,11 +43,55 @@ const statusStyles: Record<ReviewStatus, string> = {
   Approved: "bg-emerald-50 text-emerald-700",
 };
 
-export default function ManagementSubmissions() {
-  const [items, setItems] = useState(initialItems);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+function mapSubmission(item:SubmissionView):Submission{
+  return{id:item.id,title:item.taskTitle,brand:item.brandName,employee:item.submitterName,
+    type:item.type==="video"?"Video":"Design",
+    status:item.status==="revision_requested"?"Revision Required":
+      item.status==="approved"||item.status==="published"?"Approved":"In Review",
+    submitted:item.submittedAt?new Date(item.submittedAt).toLocaleString():"Pending",
+    sourceLink:item.finalUrl??item.sourceUrl??"#",feedback:item.latestFeedback??undefined,
+    updatedAt:item.updatedAt,taskUpdatedAt:item.taskUpdatedAt,
+    attachmentsImmutable:item.status==="published"||item.status==="archived"};
+}
+export default function ManagementSubmissions({backendItems}:{backendItems?:SubmissionView[]}) {
+  const [items, setItems] = useState(
+    backendItems===undefined?initialItems:backendItems.map(mapSubmission));
+  const [selectedId, setSelectedId] = useState<number|string|null>(null);
   const [feedback, setFeedback] = useState("");
+  const [publishedUrl,setPublishedUrl]=useState("");
+  const [attachments,setAttachments]=useState<AttachmentView[]>([]);
+  const [attachmentsPending,setAttachmentsPending]=useState(false);
+  const [attachmentMessage,setAttachmentMessage]=useState("");
+  const [removingAttachment,setRemovingAttachment]=useState<string|null>(null);
   const selected = items.find((item) => item.id === selectedId) ?? null;
+
+  useEffect(()=>{
+    if(selectedId===null)return;
+    let current=true;
+    void listAttachmentsAction("submission",String(selectedId)).then((result)=>{
+      if(!current)return;
+      if(result.ok)setAttachments(result.data);
+      else setAttachmentMessage("Attachments could not be loaded safely.");
+      setAttachmentsPending(false);
+    });
+    return()=>{current=false;};
+  },[selectedId]);
+
+  async function removeSubmissionAttachment(id:string){
+    if(!selected||selected.attachmentsImmutable||
+      !window.confirm("Remove this private submission attachment?"))return;
+    setRemovingAttachment(id);setAttachmentMessage("");
+    const result=await removeAttachmentAction(id,"submission");
+    if(result.ok){
+      setAttachments((current)=>current.filter((item)=>item.id!==id));
+      setAttachmentMessage("Attachment removed.");
+    }else{
+      setAttachmentMessage(result.code==="forbidden"
+        ?"Published submission attachments are immutable."
+        :"Attachment removal could not be completed safely.");
+    }
+    setRemovingAttachment(null);
+  }
 
   const metrics = useMemo(() => [
     { label: "Total Submissions", value: items.length, caption: "Across both departments", icon: Send, card: "bg-brand-blue-gradient text-white", iconTone: "bg-white text-[#2f80ed]" },
@@ -46,22 +100,26 @@ export default function ManagementSubmissions() {
     { label: "Approved", value: items.filter((item) => item.status === "Approved").length, caption: "Ready for publishing", icon: Check, card: "border border-[#edf0f5] bg-white", iconTone: "bg-emerald-50 text-emerald-600" },
   ], [items]);
 
-  function openReview(id: number) {
+  function openReview(id: number|string) {
     const item = items.find((entry) => entry.id === id);
+    setAttachments([]);
+    setAttachmentMessage("");
+    setAttachmentsPending(true);
     setSelectedId(id);
     setFeedback(item?.feedback ?? "");
   }
 
-  function updateStatus(status: ReviewStatus) {
+  async function updateStatus(status: ReviewStatus) {
     if (!selected || (status === "Revision Required" && !feedback.trim())) return;
-
-    setItems((current) =>
-      current.map((item) =>
-        item.id === selected.id
-          ? { ...item, status, feedback: status === "Revision Required" ? feedback.trim() : undefined }
-          : item,
-      ),
-    );
+    if(!selected.updatedAt||!selected.taskUpdatedAt)return;
+    const result=status==="Revision Required"
+      ?await requestRevisionAction({submissionId:String(selected.id),feedback,
+        expectedUpdatedAt:selected.updatedAt,expectedTaskUpdatedAt:selected.taskUpdatedAt})
+      :await publishSubmissionAction({submissionId:String(selected.id),publishedUrl,
+        expectedUpdatedAt:selected.updatedAt,expectedTaskUpdatedAt:selected.taskUpdatedAt});
+    if(!result.ok)return;
+    setItems(current=>current.map(item=>item.id===selected.id?{...item,status,
+      feedback:status==="Revision Required"?feedback.trim():undefined}:item));
 
     setSelectedId(null);
     setFeedback("");
@@ -146,17 +204,74 @@ export default function ManagementSubmissions() {
                 Open Submitted Work <ExternalLink size={14} />
               </a>
 
+              <section className="rounded-2xl border border-[#e5e9ef] p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-bold">Private attachments</h3>
+                    <p className="mt-1 text-xs text-[#858d99]">
+                      Signed links expire after five minutes.
+                    </p>
+                  </div>
+                  {selected.attachmentsImmutable ? (
+                    <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-bold text-slate-600">
+                      Immutable
+                    </span>
+                  ) : null}
+                </div>
+                {attachmentsPending ? (
+                  <p className="mt-4 text-xs text-[#858d99]">Loading attachments…</p>
+                ) : attachments.length===0 ? (
+                  <p className="mt-4 text-xs text-[#858d99]">No private attachments.</p>
+                ) : (
+                  <div className="mt-4 space-y-2">
+                    {attachments.map((attachment)=>(
+                      <div key={attachment.id} className="flex items-center gap-3 rounded-xl bg-[#f7f9fc] p-3">
+                        <FileText size={16} className="shrink-0 text-[#2f80ed]"/>
+                        <a href={attachment.url} target="_blank" rel="noreferrer"
+                          className="min-w-0 flex-1 truncate text-xs font-bold text-[#2f80ed]">
+                          {attachment.name}
+                        </a>
+                        <span className="text-[10px] text-[#858d99]">
+                          {Math.max(1,Math.ceil(attachment.byteSize/1024))} KB
+                        </span>
+                        <button type="button"
+                          onClick={()=>removeSubmissionAttachment(attachment.id)}
+                          disabled={selected.attachmentsImmutable||removingAttachment===attachment.id}
+                          title={selected.attachmentsImmutable
+                            ?"Published submission attachments cannot be removed."
+                            :"Remove attachment"}
+                          aria-label={`Remove ${attachment.name}`}
+                          className="grid size-8 place-items-center rounded-full text-red-500 disabled:cursor-not-allowed disabled:opacity-35">
+                          <Trash2 size={14}/>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {attachmentMessage ? (
+                  <p className="mt-3 text-xs text-[#68717e]" role="status">{attachmentMessage}</p>
+                ) : null}
+              </section>
+
               <label>
                 <span className="text-xs font-bold text-[#4d5560]">Revision feedback</span>
                 <textarea value={feedback} onChange={(event) => setFeedback(event.target.value)} rows={5} placeholder="Explain what needs to be changed..." className="mt-2 w-full resize-none rounded-2xl border border-[#e5e9ef] p-4 text-sm leading-6 outline-none focus:border-[#2f80ed]" />
+              </label>
+              <label>
+                <span className="text-xs font-bold text-[#4d5560]">Published HTTPS URL</span>
+                <input type="url" value={publishedUrl}
+                  onChange={(event)=>setPublishedUrl(event.target.value)}
+                  placeholder="https://..." className="mt-2 w-full rounded-2xl border border-[#e5e9ef] p-4 text-sm outline-none focus:border-[#2f80ed]"/>
               </label>
 
               <div className="grid grid-cols-2 gap-3">
                 <button type="button" onClick={() => updateStatus("Revision Required")} disabled={!feedback.trim()} className="flex items-center justify-center gap-2 rounded-full border border-orange-100 bg-orange-50 px-5 py-3 text-xs font-bold text-orange-700 disabled:cursor-not-allowed disabled:opacity-40">
                   <RotateCcw size={14} /> Request Revision
                 </button>
-                <button type="button" onClick={() => updateStatus("Approved")} className="flex items-center justify-center gap-2 rounded-full bg-emerald-600 px-5 py-3 text-xs font-bold text-white">
-                  <Check size={14} /> Approve
+                <button type="button" onClick={() => updateStatus("Approved")}
+                  disabled={!publishedUrl.startsWith("https://")}
+                  className="flex items-center justify-center gap-2 rounded-full bg-emerald-600 px-5 py-3 text-xs font-bold text-white disabled:opacity-40">
+                  <Check size={14} /> Approve & Publish
                 </button>
               </div>
             </div>

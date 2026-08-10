@@ -1,12 +1,12 @@
 "use client";
 
-export type BrandStatus = "Active" | "Paused";
+export type BrandStatus = "Active" | "Paused" | "Archived";
 export type WeekDay = "Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday";
 export type ContentDepartment = "Graphic Design" | "Video Editing";
 export type Platform = "Instagram" | "Facebook" | "LinkedIn" | "TikTok" | "YouTube";
 
 export type WeeklyScheduleItem = {
-  id: number;
+  id: number | string;
   day: WeekDay;
   department: ContentDepartment;
   contentType: string;
@@ -15,7 +15,7 @@ export type WeeklyScheduleItem = {
 };
 
 export type Brand = {
-  id: number;
+  id: number | string;
   name: string;
   initials: string;
   industry: string;
@@ -242,41 +242,9 @@ export const initialBrands: Brand[] = [
   },
 ];
 
-const contentTypes: ContentType[] = ["Post", "Reel", "Story", "Carousel", "Banner"];
-const contentStatuses: ContentStatus[] = ["Completed", "Completed", "Completed", "Pending Review", "Revision", "Delayed"];
-
 export function buildBrandHistory(brand: Brand): BrandHistoryItem[] {
-  const months = [
-    { value: "2026-05", days: [2, 5, 8, 12, 16, 20, 23, 27] },
-    { value: "2026-06", days: [3, 6, 10, 13, 17, 21, 24, 28] },
-    { value: "2026-07", days: [1, 4, 8, 11, 15, 18, 22, 25, 27] },
-  ];
-
-  const assignees = [...brand.graphicDesigners, ...brand.videoEditors];
-  const team = assignees.length > 0 ? assignees : ["Unassigned"];
-  const platforms: Platform[] =
-    brand.platforms.length > 0
-      ? brand.platforms
-      : ["Instagram"];
-
-  return months.flatMap((month, monthIndex) =>
-    month.days.map((day, index) => {
-      const type = contentTypes[(index + monthIndex + brand.id) % contentTypes.length];
-      const platform = platforms[(index + brand.id) % platforms.length];
-      const assignedTo = team[(index + monthIndex) % team.length];
-      const status = contentStatuses[(index + monthIndex + brand.id) % contentStatuses.length];
-
-      return {
-        id: `${brand.id}-${month.value}-${day}`,
-        date: `${month.value}-${String(day).padStart(2, "0")}`,
-        title: `${brand.name} ${type} ${index + 1}`,
-        type,
-        platform,
-        assignedTo,
-        status,
-      };
-    }),
-  );
+  void brand;
+  return [];
 }
 
 export const brandsStorageKey = "creativeops-brands";

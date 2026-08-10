@@ -14,9 +14,13 @@ import {
   type FormEvent,
 } from "react";
 
-import { createClient } from "@/lib/supabase/client";
+import { resetPassword } from "@/app/auth/actions";
 
-export default function ResetPasswordForm() {
+export default function ResetPasswordForm({
+  hasValidRecoveryState,
+}: {
+  hasValidRecoveryState: boolean;
+}) {
   const router = useRouter();
 
   const [password, setPassword] =
@@ -38,9 +42,12 @@ export default function ResetPasswordForm() {
     event.preventDefault();
     setErrorMessage("");
 
-    if (password.length < 8) {
+    if (
+      password.trim().length === 0 ||
+      password.length < 12
+    ) {
       setErrorMessage(
-        "Use at least 8 characters for your new password.",
+        "Use at least 12 characters for your new password.",
       );
       return;
     }
@@ -54,30 +61,26 @@ export default function ResetPasswordForm() {
 
     setIsUpdating(true);
 
-    const supabase = createClient();
-
-    const { error } =
-      await supabase.auth.updateUser({
+    try {
+      const result = await resetPassword({
         password,
+        confirmation,
       });
 
-    if (error) {
-      setIsUpdating(false);
+      if (!result.success) {
+        setErrorMessage(result.message);
+        return;
+      }
+
+      router.replace(result.destination);
+      router.refresh();
+    } catch {
       setErrorMessage(
-        error.message ||
-          "We could not update your password. Request a new reset link and try again.",
+        "We could not reset your password. Request a new reset link and try again.",
       );
-      return;
+    } finally {
+      setIsUpdating(false);
     }
-
-    await supabase.auth.signOut({
-      scope: "local",
-    });
-
-    router.replace(
-      "/login?password_updated=1",
-    );
-    router.refresh();
   }
 
   return (
@@ -110,13 +113,16 @@ export default function ResetPasswordForm() {
           </h1>
 
           <p className="mt-3 text-sm leading-6 text-[#777e89]">
-            Choose a strong password that you do not use for another account.
+            {hasValidRecoveryState
+              ? "Choose a strong password that you do not use for another account."
+              : "This password reset link is invalid or has expired. Request a new link to continue."}
           </p>
 
-          <form
-            onSubmit={handleSubmit}
-            className="mt-7 space-y-5"
-          >
+          {hasValidRecoveryState ? (
+            <form
+              onSubmit={handleSubmit}
+              className="mt-7 space-y-5"
+            >
             <label className="block">
               <span className="text-xs font-bold text-[#4d5560]">
                 New password
@@ -142,7 +148,7 @@ export default function ResetPasswordForm() {
                     setErrorMessage("");
                   }}
                   autoComplete="new-password"
-                  placeholder="At least 8 characters"
+                  placeholder="At least 12 characters"
                   className="h-full min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-[#b0b6bf]"
                 />
 
@@ -248,7 +254,16 @@ export default function ResetPasswordForm() {
                 ? "Updating password..."
                 : "Update password"}
             </button>
-          </form>
+            </form>
+          ) : (
+            <div
+              role="alert"
+              className="mt-7 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-xs font-semibold leading-5 text-red-700"
+            >
+              Request another reset link before
+              choosing a new password.
+            </div>
+          )}
 
           <Link
             href="/forgot-password"

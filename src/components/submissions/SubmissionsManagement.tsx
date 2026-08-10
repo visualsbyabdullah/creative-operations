@@ -29,6 +29,7 @@ import type {
 } from "@/config/employee";
 
 import { useEmployee } from "@/context/EmployeeContext";
+import type { SubmissionView } from "@/lib/submissions/submission-types";
 
 type SubmissionStatus =
   | "Draft"
@@ -43,7 +44,7 @@ type SubmissionType =
   | "Video";
 
 type Submission = {
-  id: number;
+  id: number|string;
   taskTitle: string;
   brand: string;
   department: EmployeeDepartment;
@@ -259,7 +260,19 @@ function StatusBadge({
   );
 }
 
-export default function SubmissionsManagement() {
+function mapBackendSubmission(item:SubmissionView):Submission{
+  return{id:item.id,taskTitle:item.taskTitle,brand:item.brandName,
+    department:item.type==="video"?"Video Editing":"Graphic Design",
+    type:item.type==="video"?"Video":"Design",
+    submittedAt:item.submittedAt?new Date(item.submittedAt).toLocaleString():"Pending",
+    status:item.status==="revision_requested"?"Revision Required":
+      item.status==="approved"?"Approved":item.status==="published"?"Published":
+        item.status==="draft"?"Draft":item.status==="in_review"?"In Review":"Submitted",
+    sourceLink:item.sourceUrl??undefined,finalLink:item.finalUrl??"",
+    publishedLink:item.publishedUrl??undefined,feedback:item.latestFeedback??undefined,
+    revisionNumber:item.revisionNumber};
+}
+export default function SubmissionsManagement({backendItems}:{backendItems?:SubmissionView[]}) {
   const {
     department: selectedDepartment,
     employee,
@@ -267,7 +280,7 @@ export default function SubmissionsManagement() {
 
   const [submissions, setSubmissions] =
     useState<Submission[]>(
-      initialSubmissions,
+      backendItems===undefined?initialSubmissions:backendItems.map(mapBackendSubmission),
     );
 
   const [searchQuery, setSearchQuery] =
@@ -282,7 +295,7 @@ export default function SubmissionsManagement() {
   const [
     selectedSubmissionId,
     setSelectedSubmissionId,
-  ] = useState<number | null>(null);
+  ] = useState<number|string|null>(null);
 
   const [
     isSubmissionModalOpen,
@@ -465,24 +478,6 @@ export default function SubmissionsManagement() {
     });
 
     setIsSubmissionModalOpen(false);
-  }
-
-  function resubmit(
-    submissionId: number,
-  ) {
-    setSubmissions((current) =>
-      current.map((submission) =>
-        submission.id === submissionId
-          ? {
-              ...submission,
-              status: "Submitted",
-              revisionNumber:
-                submission.revisionNumber +
-                1,
-            }
-          : submission,
-      ),
-    );
   }
 
   return (
@@ -1019,18 +1014,12 @@ export default function SubmissionsManagement() {
               "Revision Required" ? (
                 <button
                   type="button"
-                  onClick={() => {
-                    resubmit(
-                      selectedSubmission.id,
-                    );
-                    setSelectedSubmissionId(
-                      null,
-                    );
-                  }}
-                  className="flex w-full items-center justify-center gap-2 rounded-full bg-[#2f80ed] px-5 py-3 text-sm font-bold text-white"
+                  disabled
+                  title="Resume the revised task in My Tasks, then submit the next revision there."
+                  className="flex w-full items-center justify-center gap-2 rounded-full bg-[#2f80ed] px-5 py-3 text-sm font-bold text-white opacity-50"
                 >
                   <RotateCcw size={17} />
-                  Mark Revision Resubmitted
+                  Resume in My Tasks
                 </button>
               ) : null}
             </div>
@@ -1082,7 +1071,7 @@ export default function SubmissionsManagement() {
                       }),
                     )
                   }
-                  placeholder="Assigned task ka title"
+                  placeholder="Enter the assigned task title"
                   className="mt-2 w-full rounded-2xl border border-[#e5e9ef] px-4 py-3 text-sm outline-none focus:border-[#2f80ed]"
                 />
               </label>
@@ -1213,6 +1202,3 @@ export default function SubmissionsManagement() {
     </main>
   );
 }
-
-
-

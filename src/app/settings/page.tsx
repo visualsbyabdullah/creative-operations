@@ -1,5 +1,5 @@
-﻿import EmployeeSettings from "@/components/profile/EmployeeSettings";
+import { redirect } from "next/navigation";
 
 export default function SettingsPage() {
-  return <EmployeeSettings />;
+  redirect("/profile");
 }

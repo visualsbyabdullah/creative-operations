@@ -5,9 +5,12 @@ import SystemTable from "@/components/ui/SystemTable";
 import EmployeeHeader from "@/components/layout/EmployeeHeader";
 import PillSelect from "@/components/ui/PillSelect";
 import { useEmployee } from "@/context/EmployeeContext";
-import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
   CalendarDays,
+  ChevronLeft,
+  ChevronRight,
   Check,
   CircleAlert,
   Clock3,
@@ -16,11 +19,22 @@ import {
   Film,
   Link2,
   ListChecks,
+  Plus,
   Search,
   Send,
   Upload,
   X,
 } from "lucide-react";
+import type { TaskView } from "@/lib/tasks/task-types";
+import type { TaskOption } from "@/lib/tasks/task-types";
+import { createSelfTaskAction, submitTaskAction, transitionTaskAction } from "@/app/tasks/actions";
+import { shiftCalendarDate } from "@/lib/tasks/task-date";
+import {
+  listAttachmentsAction,
+  removeAttachmentAction,
+  uploadAttachmentAction,
+} from "@/app/attachments/actions";
+import type { AttachmentView } from "@/lib/storage/storage-service";
 
 type Department = "Graphic Design" | "Video Editing";
 
@@ -30,7 +44,7 @@ type TaskStatus =
   | "In Review"
   | "Revision Required"
   | "Approved"
-  | "Published"
+  | "Completed"
   | "Delayed";
 
 type Priority = "Low" | "Medium" | "High" | "Urgent";
@@ -50,7 +64,7 @@ type Platform =
   | "YouTube";
 
 type CreativeTask = {
-  id: number;
+  id: number | string;
   brand: string;
   title: string;
   department: Department;
@@ -67,18 +81,19 @@ type CreativeTask = {
   publishedLink?: string;
   delayReason?: string;
   feedback?: string;
+  canonicalStatus?: TaskView["status"];
+  updatedAt?: string;
 };
 
 type StatusFilter = "All Statuses" | TaskStatus;
 
-type DayFilter = "All Days" | WeekDay;
 const statusStyles: Record<TaskStatus, string> = {
   "Not Started": "bg-slate-100 text-slate-700",
   "In Progress": "bg-blue-50 text-blue-700",
   "In Review": "bg-amber-50 text-amber-700",
   "Revision Required": "bg-orange-50 text-orange-700",
   Approved: "bg-emerald-50 text-emerald-700",
-  Published: "bg-green-50 text-green-700",
+  Completed: "bg-green-50 text-green-700",
   Delayed: "bg-red-50 text-red-700",
 };
 
@@ -292,21 +307,13 @@ const initialTasks: CreativeTask[] = [
   },
 ];
 
-const weekDays: WeekDay[] = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-];
-
 const statuses: TaskStatus[] = [
   "Not Started",
   "In Progress",
   "In Review",
   "Revision Required",
   "Approved",
-  "Published",
+  "Completed",
   "Delayed",
 ];
 
@@ -324,19 +331,6 @@ const statusFilterOptions: {
   })),
 ];
 
-const dayFilterOptions: {
-  label: string;
-  value: DayFilter;
-}[] = [
-  {
-    label: "All Days",
-    value: "All Days",
-  },
-  ...weekDays.map((day) => ({
-    label: day,
-    value: day,
-  })),
-];
 
 function StatusBadge({ status }: { status: TaskStatus }) {
   return (
@@ -389,41 +383,132 @@ function ProgressMeter({
   );
 }
 
-export default function MyTasks() {
+export default function MyTasks({
+  backendTasks,
+  selectedDate = new Date().toISOString().slice(0, 10),
+  today = selectedDate,
+  brands = [],
+}: {
+  backendTasks?: TaskView[];
+  selectedDate?: string;
+  today?: string;
+  brands?: TaskOption[];
+}) {
+  const router = useRouter();
+  const [datePending, startDateTransition] = useTransition();
   const {
     department,
     employee,
   } = useEmployee();
 
   const departmentTasks = useMemo(
-    () =>
-      initialTasks.filter(
+    () => {
+      if (backendTasks !== undefined) {
+        return backendTasks.map((task) => ({
+          id: task.id,
+          brand: task.brandName,
+          title: task.title,
+          department: task.department === "video_editing" ? "Video Editing" as const : "Graphic Design" as const,
+          contentType: task.contentType,
+          platforms: [] as Platform[],
+          day: new Date(`${task.scheduledDate}T12:00:00.000Z`).toLocaleDateString("en-US", { weekday: "long" }) as WeekDay,
+          deadline: task.hasDeadline ? new Date(task.deadlineAt).toLocaleString() : "No deadline set",
+          status: task.status === "in_progress" ? "In Progress" as const
+            : task.status === "submitted" ? "In Review" as const
+              : task.status === "revision_requested" ? "Revision Required" as const
+                : task.status === "completed" ? "Completed" as const : "Not Started" as const,
+          priority: `${task.priority[0].toUpperCase()}${task.priority.slice(1)}` as Priority,
+          assignedBy: task.source === "self_created" ? "Employee Added" : "Management",
+          description: task.description,
+          referenceLink: task.referenceUrl ?? undefined,
+          delayReason: task.delayReason ?? undefined,
+          canonicalStatus: task.status,
+          updatedAt: task.updatedAt,
+        }));
+      }
+      return initialTasks.filter(
         (task) =>
           task.department === department,
-      ),
-    [department],
+      );
+    },
+    [backendTasks, department],
   );
 
   const [tasks, setTasks] =
     useState<CreativeTask[]>(departmentTasks);
 const [selectedTaskId, setSelectedTaskId] =
-    useState<number | null>(null);
+    useState<number | string | null>(null);
+  const submissionKeys = useRef(new Map<string, string>());
 
   const [searchQuery, setSearchQuery] = useState("");
 
   const [statusFilter, setStatusFilter] =
     useState<StatusFilter>("All Statuses");
 
-  const [dayFilter, setDayFilter] =
-    useState<DayFilter>("All Days");
-
   const [submissionLink, setSubmissionLink] = useState("");
+  const [submissionFile,setSubmissionFile]=useState<File|null>(null);
+  const [submissionMessage,setSubmissionMessage]=useState("");
+  const [taskFile,setTaskFile]=useState<File|null>(null);
+  const [taskAttachmentMessage,setTaskAttachmentMessage]=useState("");
+  const [taskAttachments,setTaskAttachments]=useState<AttachmentView[]>([]);
 
   const [publishedLink, setPublishedLink] = useState("");
 
   const [delayReason, setDelayReason] = useState("");
 
   const [showDelayForm, setShowDelayForm] = useState(false);
+  const [showAddTask, setShowAddTask] = useState(false);
+  const [createPending, startCreateTransition] = useTransition();
+  const [createMessage, setCreateMessage] = useState("");
+  const [taskDraft, setTaskDraft] = useState({
+    title: "",
+    scheduledDate: selectedDate,
+    brandId: brands[0]?.id ?? "",
+    priority: "medium",
+    description: "",
+  });
+
+  const selectedDateLabel = new Intl.DateTimeFormat("en-US", {
+    weekday: "long", year: "numeric", month: "long", day: "numeric", timeZone: "UTC",
+  }).format(new Date(`${selectedDate}T12:00:00.000Z`));
+
+  useEffect(() => {
+    if (!showAddTask) return;
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setShowAddTask(false);
+    }
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [showAddTask]);
+
+  function navigateDate(date: string) {
+    startDateTransition(() => router.push(`/tasks?date=${date}`));
+  }
+
+  function openAddTask() {
+    setTaskDraft((current) => ({ ...current, scheduledDate: selectedDate }));
+    setCreateMessage("");
+    setShowAddTask(true);
+  }
+
+  function createTask() {
+    if (createPending || !taskDraft.title.trim() || !taskDraft.brandId) return;
+    startCreateTransition(async () => {
+      const result = await createSelfTaskAction(taskDraft);
+      if (!result.ok) {
+        setCreateMessage(result.code === "validation_failed"
+          ? "Check the task details and try again."
+          : "The task could not be added. Please try again.");
+        return;
+      }
+      setShowAddTask(false);
+      setTaskDraft({
+        title: "", scheduledDate: selectedDate, brandId: brands[0]?.id ?? "",
+        priority: "medium", description: "",
+      });
+      router.refresh();
+    });
+  }
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
@@ -431,7 +516,6 @@ const [selectedTaskId, setSelectedTaskId] =
       setSelectedTaskId(null);
       setSearchQuery("");
       setStatusFilter("All Statuses");
-      setDayFilter("All Days");
     });
 
     return () => cancelAnimationFrame(frame);
@@ -453,19 +537,15 @@ const [selectedTaskId, setSelectedTaskId] =
         statusFilter === "All Statuses" ||
         task.status === statusFilter;
 
-      const dayMatches =
-        dayFilter === "All Days" ||
-        task.day === dayFilter;
-
-      return searchMatches && statusMatches && dayMatches;
+      return searchMatches && statusMatches;
     });
-  }, [tasks, searchQuery, statusFilter, dayFilter]);
+  }, [tasks, searchQuery, statusFilter]);
 
   const stats = useMemo(() => {
     const total = tasks.length;
 
     const completed = tasks.filter((task) =>
-      ["Approved", "Published"].includes(task.status),
+      ["Approved", "Completed"].includes(task.status),
     ).length;
 
     const active = tasks.filter((task) =>
@@ -478,12 +558,10 @@ const [selectedTaskId, setSelectedTaskId] =
       (task) => task.status === "Delayed",
     ).length;
 
-    const todayTasks = tasks.filter(
-      (task) => task.day === "Wednesday",
-    );
+    const todayTasks = tasks;
 
     const todayCompleted = todayTasks.filter((task) =>
-      ["Approved", "Published"].includes(task.status),
+      ["Approved", "Completed"].includes(task.status),
     ).length;
 
     const weeklyPercentage =
@@ -516,11 +594,19 @@ const [selectedTaskId, setSelectedTaskId] =
     setPublishedLink(task.publishedLink ?? "");
     setDelayReason(task.delayReason ?? "");
     setShowDelayForm(task.status === "Delayed");
+    setTaskAttachments([]);
+    void listAttachmentsAction("task",String(task.id)).then((result)=>{
+      if(result.ok)setTaskAttachments(result.data);
+    });
   }
 
   function closeDrawer() {
     setSelectedTaskId(null);
     setSubmissionLink("");
+    setSubmissionFile(null);
+    setSubmissionMessage("");
+    setTaskFile(null);
+    setTaskAttachmentMessage("");
     setPublishedLink("");
     setDelayReason("");
     setShowDelayForm(false);
@@ -545,18 +631,35 @@ const [selectedTaskId, setSelectedTaskId] =
     );
   }
 
-  function handleStatusChange(status: TaskStatus) {
-    if (status === "Delayed") {
-      setShowDelayForm(true);
-      return;
-    }
-
-    setShowDelayForm(false);
-
-    updateSelectedTask({
-      status,
-      delayReason: undefined,
+  async function handleStatusChange(status: TaskStatus) {
+    if (!selectedTask?.canonicalStatus || !selectedTask.updatedAt) return;
+    const target = status === "In Progress" &&
+      selectedTask.canonicalStatus === "assigned"
+      ? ["assigned","in_progress"]
+      : status === "In Progress" &&
+        selectedTask.canonicalStatus === "revision_requested"
+        ? ["revision_requested","in_progress"] : null;
+    if (!target) return;
+    const result = await transitionTaskAction({
+      taskId: String(selectedTask.id),
+      expectedFrom: target[0],
+      toStatus: target[1],
+      reason: null,
     });
+    if (result.ok) {
+      updateSelectedTask({
+        status: "In Progress",
+        canonicalStatus: "in_progress",
+        updatedAt: result.data.updatedAt,
+      });
+      setSubmissionMessage("Task status updated. You can now submit work using the form below.");
+    } else {
+      setSubmissionMessage(
+        result.code === "stale_update"
+          ? "This task changed in another session. Close and reopen it before trying again."
+          : "The task status could not be updated. Please try again.",
+      );
+    }
   }
 
   function saveDelay() {
@@ -572,26 +675,81 @@ const [selectedTaskId, setSelectedTaskId] =
     setShowDelayForm(false);
   }
 
-  function saveSubmission() {
-    if (!submissionLink.trim()) {
+  async function saveSubmission() {
+    if (!submissionLink.trim() || !selectedTask?.updatedAt ||
+      selectedTask.canonicalStatus !== "in_progress") {
       return;
     }
-
-    updateSelectedTask({
-      submissionLink: submissionLink.trim(),
-      status: "In Review",
+    const taskId = String(selectedTask.id);
+    let key = submissionKeys.current.get(taskId);
+    if (!key) {
+      key = crypto.randomUUID();
+      submissionKeys.current.set(taskId, key);
+    }
+    const result = await submitTaskAction({
+      taskId,
+      expectedUpdatedAt: selectedTask.updatedAt,
+      idempotencyKey: key,
+      type: selectedTask.department === "Video Editing" ? "video" : "design",
+      sourceUrl: null,
+      finalUrl: submissionLink.trim(),
+      notes: "",
     });
+    if (result.ok) {
+      if(submissionFile){
+        const formData=new FormData();
+        formData.set("file",submissionFile);
+        formData.set("parentType","submission");
+        formData.set("parentId",result.data.submissionId);
+        const attachment=await uploadAttachmentAction(formData);
+        setSubmissionMessage(attachment.ok
+          ?"Submission and private attachment uploaded."
+          :"Submission succeeded, but the attachment upload failed. You may retry from submission history.");
+      }else{
+        setSubmissionMessage("Submission sent for review.");
+      }
+      updateSelectedTask({
+        submissionLink: submissionLink.trim(),
+        status: "In Review",
+        canonicalStatus: "submitted",
+      });
+    } else {
+      submissionKeys.current.delete(taskId);
+      setSubmissionMessage(
+        result.code === "stale_update"
+          ? "This task changed after it was opened. Close and reopen it, then submit again."
+          : result.code === "validation_failed"
+            ? "Enter a valid HTTPS work link before submitting."
+            : result.code === "idempotency_conflict"
+              ? "This submission request conflicts with an earlier attempt. Please try again."
+              : "The submission could not be sent. Please try again.",
+      );
+    }
   }
 
-  function savePublishedLink() {
-    if (!publishedLink.trim()) {
-      return;
+  async function uploadTaskAttachment(){
+    if(!selectedTask||!taskFile)return;
+    const formData=new FormData();
+    formData.set("file",taskFile);
+    formData.set("parentType","task");
+    formData.set("parentId",String(selectedTask.id));
+    const result=await uploadAttachmentAction(formData);
+    setTaskAttachmentMessage(result.ok
+      ?"Private task attachment uploaded."
+      : result.code==="validation_failed"
+        ?"The selected file type, extension, or size is not allowed."
+        :"Task attachment upload was not authorized or is temporarily unavailable.");
+    if(result.ok)setTaskFile(null);
+    if(result.ok){
+      const refreshed=await listAttachmentsAction("task",String(selectedTask.id));
+      if(refreshed.ok)setTaskAttachments(refreshed.data);
     }
+  }
 
-    updateSelectedTask({
-      publishedLink: publishedLink.trim(),
-      status: "Published",
-    });
+  async function removeTaskAttachment(id:string){
+    const result=await removeAttachmentAction(id,"task");
+    if(result.ok)setTaskAttachments((current)=>current.filter((item)=>item.id!==id));
+    else setTaskAttachmentMessage("Attachment removal could not be completed.");
   }
 
   return (
@@ -617,8 +775,56 @@ const [selectedTaskId, setSelectedTaskId] =
               </p>
             </div>
 
-            <div className="rounded-full border border-[#e7ebf0] bg-white px-5 py-3 text-xs font-bold text-[#59616d] shadow-sm">
-              Wednesday, 22 July 2026
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center rounded-full border border-[#e7ebf0] bg-white p-1">
+                <button
+                  type="button"
+                  aria-label="Previous day"
+                  onClick={() => navigateDate(shiftCalendarDate(selectedDate, -1))}
+                  disabled={datePending}
+                  className="grid size-9 place-items-center rounded-full text-[#59616d] transition hover:bg-[#f2f6fb] disabled:opacity-40"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <label className="relative flex min-w-[210px] cursor-pointer items-center justify-center gap-2 px-3 text-xs font-bold text-[#39414c]">
+                  <CalendarDays size={15} className="text-[#2f80ed]" />
+                  <span>{selectedDate === today ? `Today · ${selectedDateLabel}` : selectedDateLabel}</span>
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    aria-label="Select task date"
+                    onChange={(event) => navigateDate(event.target.value)}
+                    className="absolute inset-0 cursor-pointer opacity-0"
+                  />
+                </label>
+                <button
+                  type="button"
+                  aria-label="Next day"
+                  onClick={() => navigateDate(shiftCalendarDate(selectedDate, 1))}
+                  disabled={datePending}
+                  className="grid size-9 place-items-center rounded-full text-[#59616d] transition hover:bg-[#f2f6fb] disabled:opacity-40"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+              {selectedDate !== today ? (
+                <button
+                  type="button"
+                  onClick={() => navigateDate(today)}
+                  className="h-11 rounded-full border border-[#dfe5ed] bg-white px-4 text-xs font-bold text-[#4f5762] transition hover:border-[#2f80ed] hover:text-[#2f80ed]"
+                >
+                  Today
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={openAddTask}
+                disabled={brands.length === 0}
+                className="flex h-11 items-center gap-2 rounded-full bg-[#2f80ed] px-5 text-xs font-bold text-white shadow-md shadow-blue-200 transition hover:bg-[#1769d2] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <Plus size={15} />
+                Add Task
+              </button>
             </div>
           </section>
 
@@ -635,7 +841,7 @@ const [selectedTaskId, setSelectedTaskId] =
                   </p>
 
                   <p className="mt-3 text-xs text-white/70">
-                    Assigned for this week
+                    Scheduled for this date
                   </p>
                 </div>
 
@@ -657,7 +863,7 @@ const [selectedTaskId, setSelectedTaskId] =
                   </p>
 
                   <p className="mt-3 text-xs text-[#959ca7]">
-                    Approved or published
+                    Finished tasks
                   </p>
                 </div>
 
@@ -717,12 +923,12 @@ const [selectedTaskId, setSelectedTaskId] =
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-sm font-bold">
-                    Daily Progress
+                    Date Progress
                   </h2>
 
                   <p className="mt-1 text-xs text-[#9299a4]">
                     {stats.todayCompleted} of{" "}
-                    {stats.todayTasks} tasks completed today
+                    {stats.todayTasks} tasks completed on this date
                   </p>
                 </div>
 
@@ -734,7 +940,7 @@ const [selectedTaskId, setSelectedTaskId] =
               <div className="mt-6">
                 <ProgressMeter
                   percentage={stats.dailyPercentage}
-                  label="Today's completion"
+                  label="Selected date completion"
                 />
               </div>
             </article>
@@ -743,7 +949,7 @@ const [selectedTaskId, setSelectedTaskId] =
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-sm font-bold">
-                    Weekly Progress
+                    Workflow Progress
                   </h2>
 
                   <p className="mt-1 text-xs text-[#9299a4]">
@@ -760,7 +966,7 @@ const [selectedTaskId, setSelectedTaskId] =
               <div className="mt-6">
                 <ProgressMeter
                   percentage={stats.weeklyPercentage}
-                  label="Weekly completion"
+                  label="Task completion"
                 />
               </div>
             </article>
@@ -805,13 +1011,6 @@ const [selectedTaskId, setSelectedTaskId] =
                   onValueChange={setStatusFilter}
                 />
 
-                <PillSelect
-                  icon={CalendarDays}
-                  ariaLabel="Filter tasks by day"
-                  value={dayFilter}
-                  options={dayFilterOptions}
-                  onValueChange={setDayFilter}
-                />
               </div>
             </div>
 
@@ -938,12 +1137,24 @@ const [selectedTaskId, setSelectedTaskId] =
                     />
 
                     <p className="mt-3 text-sm font-bold">
-                      No matching tasks
+                      {tasks.length === 0 ? "No tasks scheduled for this date." : "No matching tasks"}
                     </p>
 
                     <p className="mt-1 text-xs text-[#9299a4]">
-                      Adjust the search or filters and try again.
+                      {tasks.length === 0
+                        ? "Add your own task if no work has been assigned."
+                        : "Adjust the search or status filter and try again."}
                     </p>
+                    {tasks.length === 0 ? (
+                      <button
+                        type="button"
+                        onClick={openAddTask}
+                        disabled={brands.length === 0}
+                        className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#2f80ed] px-5 py-3 text-xs font-bold text-white disabled:opacity-40"
+                      >
+                        <Plus size={14} /> Add Task
+                      </button>
+                    ) : null}
                   </div>
                 </div>
               ) : null}
@@ -951,6 +1162,106 @@ const [selectedTaskId, setSelectedTaskId] =
           </section>
         </div>
       </section>
+
+      {showAddTask ? (
+        <>
+          <button
+            type="button"
+            aria-label="Close add task dialog"
+            onClick={() => setShowAddTask(false)}
+            className="fixed inset-0 z-40 bg-[#111827]/35 backdrop-blur-[2px]"
+          />
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="add-task-title"
+            className="fixed left-1/2 top-1/2 z-50 max-h-[90dvh] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[26px] bg-white p-5 shadow-[0_30px_100px_rgba(15,23,42,0.25)] sm:p-6"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-bold text-[#2f80ed]">Personal work</p>
+                <h2 id="add-task-title" className="mt-1 text-2xl font-bold tracking-[-0.04em]">Add Task</h2>
+                <p className="mt-2 text-xs leading-5 text-[#7b838e]">
+                  This task will be assigned only to you and visible to management.
+                </p>
+              </div>
+              <button
+                type="button"
+                aria-label="Close add task dialog"
+                onClick={() => setShowAddTask(false)}
+                className="grid size-10 shrink-0 place-items-center rounded-full bg-[#f4f6f9]"
+              >
+                <X size={17} />
+              </button>
+            </div>
+
+            <div className="mt-6 grid gap-4 sm:grid-cols-2">
+              <label className="sm:col-span-2">
+                <span className="text-xs font-bold text-[#4d5560]">Task title</span>
+                <input
+                  autoFocus
+                  value={taskDraft.title}
+                  maxLength={160}
+                  onChange={(event) => setTaskDraft((current) => ({ ...current, title: event.target.value }))}
+                  className="mt-2 h-12 w-full rounded-2xl border border-[#e2e7ed] px-4 text-sm outline-none focus:border-[#2f80ed] focus:ring-4 focus:ring-blue-50"
+                />
+              </label>
+              <label>
+                <span className="text-xs font-bold text-[#4d5560]">Work date</span>
+                <input
+                  type="date"
+                  value={taskDraft.scheduledDate}
+                  onChange={(event) => setTaskDraft((current) => ({ ...current, scheduledDate: event.target.value }))}
+                  className="mt-2 h-12 w-full rounded-2xl border border-[#e2e7ed] px-4 text-sm outline-none focus:border-[#2f80ed]"
+                />
+              </label>
+              <label>
+                <span className="text-xs font-bold text-[#4d5560]">Brand</span>
+                <select
+                  value={taskDraft.brandId}
+                  onChange={(event) => setTaskDraft((current) => ({ ...current, brandId: event.target.value }))}
+                  className="mt-2 h-12 w-full rounded-2xl border border-[#e2e7ed] bg-white px-4 text-sm outline-none focus:border-[#2f80ed]"
+                >
+                  {brands.map((brand) => <option key={brand.id} value={brand.id}>{brand.name}</option>)}
+                </select>
+              </label>
+              <label>
+                <span className="text-xs font-bold text-[#4d5560]">Priority</span>
+                <select
+                  value={taskDraft.priority}
+                  onChange={(event) => setTaskDraft((current) => ({ ...current, priority: event.target.value }))}
+                  className="mt-2 h-12 w-full rounded-2xl border border-[#e2e7ed] bg-white px-4 text-sm outline-none focus:border-[#2f80ed]"
+                >
+                  <option value="low">Low</option><option value="medium">Medium</option>
+                  <option value="high">High</option><option value="urgent">Urgent</option>
+                </select>
+              </label>
+              <label className="sm:col-span-2">
+                <span className="text-xs font-bold text-[#4d5560]">Description <span className="font-normal text-[#9299a4]">(optional)</span></span>
+                <textarea
+                  rows={4}
+                  value={taskDraft.description}
+                  maxLength={5000}
+                  onChange={(event) => setTaskDraft((current) => ({ ...current, description: event.target.value }))}
+                  className="mt-2 w-full resize-none rounded-2xl border border-[#e2e7ed] p-4 text-sm outline-none focus:border-[#2f80ed]"
+                />
+              </label>
+            </div>
+            {createMessage ? <p role="alert" className="mt-4 text-xs font-semibold text-red-600">{createMessage}</p> : null}
+            <div className="mt-6 flex justify-end gap-3">
+              <button type="button" onClick={() => setShowAddTask(false)} className="h-11 rounded-full border border-[#dfe5ed] px-5 text-xs font-bold text-[#59616d]">Cancel</button>
+              <button
+                type="button"
+                onClick={createTask}
+                disabled={createPending || !taskDraft.title.trim() || !taskDraft.brandId || !taskDraft.scheduledDate}
+                className="h-11 rounded-full bg-[#2f80ed] px-5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {createPending ? "Adding..." : "Add Task"}
+              </button>
+            </div>
+          </section>
+        </>
+      ) : null}
 
       {selectedTask ? (
         <>
@@ -1100,7 +1411,12 @@ const [selectedTaskId, setSelectedTaskId] =
 
                 <PillSelect<TaskStatus>
                   value={selectedTask.status}
-                  options={statuses.map(
+                  options={(
+                    selectedTask.canonicalStatus === "assigned" ||
+                    selectedTask.canonicalStatus === "revision_requested"
+                      ? [selectedTask.status, "In Progress" as TaskStatus]
+                      : [selectedTask.status]
+                  ).filter((value, index, items) => items.indexOf(value) === index).map(
                     (status) => ({
                       label: status,
                       value: status,
@@ -1169,6 +1485,45 @@ const [selectedTaskId, setSelectedTaskId] =
               ) : null}
 
               <section className="rounded-[22px] border border-[#e7ebf0] p-4">
+                <p className="text-xs font-bold">Task attachment</p>
+                <p className="mt-1 text-[10px] text-[#9299a4]">
+                  Private files are available only to assigned staff and workspace management.
+                </p>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,application/pdf,text/plain,.docx,.xlsx"
+                  disabled={!["assigned","in_progress","revision_requested"].includes(selectedTask.canonicalStatus??"")}
+                  onChange={(event)=>setTaskFile(event.target.files?.[0]??null)}
+                  className="mt-3 block w-full text-xs disabled:opacity-40"
+                />
+                <button
+                  type="button"
+                  onClick={uploadTaskAttachment}
+                  disabled={!taskFile}
+                  className="mt-3 rounded-full border border-[#dfe5ed] px-4 py-2 text-xs font-bold disabled:opacity-40"
+                >
+                  Upload privately
+                </button>
+                {taskAttachmentMessage?(
+                  <p role="status" className="mt-2 text-xs text-[#626a75]">{taskAttachmentMessage}</p>
+                ):null}
+                {taskAttachments.length>0?(
+                  <div className="mt-3 space-y-2">
+                    {taskAttachments.map((attachment)=>(
+                      <div key={attachment.id} className="flex items-center justify-between rounded-xl bg-[#f7f9fc] p-3">
+                        <a href={attachment.url} target="_blank" rel="noreferrer" className="truncate text-xs font-bold text-[#2f80ed]">
+                          {attachment.name}
+                        </a>
+                        <button type="button" onClick={()=>removeTaskAttachment(attachment.id)} className="ml-3 text-[10px] font-bold text-red-600">
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ):null}
+              </section>
+
+              <section className="rounded-[22px] border border-[#e7ebf0] p-4">
                 <div className="flex items-center gap-3">
                   <div className="grid size-10 place-items-center rounded-xl bg-[#edf5ff] text-[#2f80ed]">
                     <Upload size={17} />
@@ -1196,6 +1551,25 @@ const [selectedTaskId, setSelectedTaskId] =
                   placeholder="Paste submission link"
                   className="mt-4 w-full rounded-2xl border border-[#e2e7ed] px-4 py-3 text-sm outline-none focus:border-[#2f80ed]"
                 />
+
+                <label className="mt-3 block rounded-2xl border border-dashed border-[#d5dce5] p-4 text-xs font-semibold text-[#626a75]">
+                  Optional private attachment
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,application/pdf,video/mp4,video/webm,.docx"
+                    onChange={(event)=>setSubmissionFile(event.target.files?.[0]??null)}
+                    className="mt-2 block w-full text-xs"
+                  />
+                  <span className="mt-2 block text-[10px] font-normal text-[#9299a4]">
+                    Validated server-side; maximum 25 MB.
+                  </span>
+                </label>
+
+                {submissionMessage?(
+                  <p role="status" className="mt-3 text-xs font-semibold text-[#4f5762]">
+                    {submissionMessage}
+                  </p>
+                ):null}
 
                 <button
                   type="button"
@@ -1229,20 +1603,18 @@ const [selectedTaskId, setSelectedTaskId] =
                 <input
                   type="url"
                   value={publishedLink}
-                  onChange={(event) =>
-                    setPublishedLink(event.target.value)
-                  }
-                  placeholder="Paste published post or reel link"
+                  readOnly
+                  placeholder="Publishing is completed by management after review."
                   className="mt-4 w-full rounded-2xl border border-[#e2e7ed] px-4 py-3 text-sm outline-none focus:border-[#2f80ed]"
                 />
 
                 <button
                   type="button"
-                  onClick={savePublishedLink}
-                  disabled={!publishedLink.trim()}
+                  disabled
+                  title="Only Manager or HR can publish an approved submission."
                   className="mt-3 w-full rounded-full bg-emerald-600 px-5 py-3 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  Mark as Published
+                  Management publishing only
                 </button>
               </section>
 
@@ -1285,13 +1657,3 @@ const [selectedTaskId, setSelectedTaskId] =
     </main>
   );
 }
-
-
-
-
-
-
-
-
-
-

@@ -10,14 +10,22 @@ import {
   Palette,
 } from "lucide-react";
 
-import { createClient } from "@/lib/supabase/client";
+import { requestPasswordReset } from "@/app/auth/actions";
 
-export default function ForgotPasswordForm() {
+export default function ForgotPasswordForm({
+  invalidLink = false,
+}: {
+  invalidLink?: boolean;
+}) {
   const [email, setEmail] = useState("");
   const [isSending, setIsSending] =
     useState(false);
   const [errorMessage, setErrorMessage] =
-    useState("");
+    useState(
+      invalidLink
+        ? "This password reset link is invalid or has expired. Request a new link."
+        : "",
+    );
   const [successMessage, setSuccessMessage] =
     useState("");
 
@@ -40,29 +48,20 @@ export default function ForgotPasswordForm() {
     setErrorMessage("");
     setSuccessMessage("");
 
-    const supabase = createClient();
+    try {
+      const result =
+        await requestPasswordReset({
+          email: normalizedEmail,
+        });
 
-    const { error } =
-      await supabase.auth.resetPasswordForEmail(
-        normalizedEmail,
-        {
-          redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
-        },
+      setSuccessMessage(result.message);
+    } catch {
+      setSuccessMessage(
+        "If an account exists for this email, password reset instructions have been sent.",
       );
-
-    setIsSending(false);
-
-    if (error) {
-      setErrorMessage(
-        error.message ||
-          "We could not send the reset email. Please try again.",
-      );
-      return;
+    } finally {
+      setIsSending(false);
     }
-
-    setSuccessMessage(
-      "Check your inbox for a secure password reset link.",
-    );
   }
 
   return (

@@ -26,6 +26,8 @@ import type {
 } from "@/config/employee";
 
 import { useEmployee } from "@/context/EmployeeContext";
+import type { NotificationView } from "@/lib/notifications/notification-types";
+import { markAllNotificationsReadAction, setNotificationReadAction } from "@/app/notifications/actions";
 
 type NotificationType =
   | "Task Assignment"
@@ -45,7 +47,7 @@ type ReadFilter =
   | "Read";
 
 type EmployeeNotification = {
-  id: number;
+  id: number|string;
   title: string;
   description: string;
   department: EmployeeDepartment;
@@ -306,7 +308,15 @@ function getNotificationAppearance(
   }
 }
 
-export default function NotificationsCenter() {
+function notificationType(type:string):NotificationType{
+  if(type.includes("revision"))return"Revision";
+  if(type.includes("published"))return"Published";
+  if(type.includes("submission"))return"Submission";
+  if(type.includes("approved"))return"Approval";
+  if(type.includes("deadline"))return"Deadline";
+  return"Task Assignment";
+}
+export default function NotificationsCenter({backendNotifications}:{backendNotifications?:NotificationView[]}) {
   const {
     department: selectedDepartment,
     employee,
@@ -316,7 +326,12 @@ export default function NotificationsCenter() {
     notifications,
     setNotifications,
   ] = useState<EmployeeNotification[]>(
-    initialNotifications,
+    backendNotifications===undefined?initialNotifications:backendNotifications.map(item=>({
+      id:item.id,title:item.title,description:item.body,department:selectedDepartment,
+      type:notificationType(item.type),time:new Date(item.createdAt).toLocaleTimeString(),
+      date:new Date(item.createdAt).toLocaleDateString(),taskTitle:"",brand:"",
+      isRead:item.readAt!==null,actionHref:item.actionPath??undefined,
+    })),
   );
 
   const [
@@ -335,7 +350,7 @@ export default function NotificationsCenter() {
   const [
     selectedNotificationId,
     setSelectedNotificationId,
-  ] = useState<number | null>(null);
+  ] = useState<number|string|null>(null);
 
 
   const departmentNotifications =
@@ -434,9 +449,12 @@ export default function NotificationsCenter() {
     };
   }, [departmentNotifications]);
 
-  function markAsRead(
-    notificationId: number,
+  async function markAsRead(
+    notificationId: number|string,
   ) {
+    const result=typeof notificationId==="string"
+      ?await setNotificationReadAction({notificationId,read:true}):{ok:true as const};
+    if(!result.ok)return;
     setNotifications((current) =>
       current.map((notification) =>
         notification.id === notificationId
@@ -450,15 +468,16 @@ export default function NotificationsCenter() {
   }
 
   function openNotification(
-    notificationId: number,
+    notificationId: number|string,
   ) {
-    markAsRead(notificationId);
+    void markAsRead(notificationId);
     setSelectedNotificationId(
       notificationId,
     );
   }
 
-  function markAllAsRead() {
+  async function markAllAsRead() {
+    const result=await markAllNotificationsReadAction();if(!result.ok)return;
     setNotifications((current) =>
       current.map((notification) =>
         notification.department ===

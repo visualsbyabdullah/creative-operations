@@ -10,6 +10,7 @@ import EmployeeHeader from "@/components/layout/EmployeeHeader";
 import type { ComponentType } from "react";
 import type { EmployeeProfile } from "@/types/auth";
 import WeeklyProgressMeter from "@/components/dashboard/WeeklyProgressMeter";
+import type { TaskView } from "@/lib/tasks/task-types";
 
 
 import {
@@ -19,7 +20,6 @@ import {
   CircleAlert,
   Clock3,
   FileImage,
-  MoreHorizontal,
   Play,
   Search,
   Users,
@@ -30,17 +30,6 @@ import {
   Tag,
 } from "lucide-react";
 
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-
 type TaskStatus =
   | "Not Started"
   | "Published"
@@ -50,7 +39,7 @@ type TaskStatus =
   | "Delayed";
 
 type Task = {
-  id: number;
+  id: number | string;
   brand: string;
   initials: string;
   content: string;
@@ -70,14 +59,6 @@ type MetricCardProps = {
   featured?: boolean;
 };
 
-
-const performanceData = [
-  { day: "Mon", completed: 4, remaining: 1 },
-  { day: "Tue", completed: 5, remaining: 2 },
-  { day: "Wed", completed: 3, remaining: 3 },
-  { day: "Thu", completed: 6, remaining: 1 },
-  { day: "Fri", completed: 2, remaining: 4 },
-];
 
 const initialTasks: Task[] = [
   {
@@ -126,6 +107,33 @@ const initialTasks: Task[] = [
     status: "Not Started",
   },
 ];
+
+function mapBackendTask(task: TaskView): Task {
+  const status: TaskStatus =
+    task.delayReason || (
+      !["completed", "archived"].includes(task.status) &&
+      task.hasDeadline && new Date(task.deadlineAt).getTime() < Date.now()
+    ) ? "Delayed"
+      : task.status === "completed" ? "Published"
+      : task.status === "archived" ? "Approved"
+      : task.status === "submitted" ? "In Review"
+      : task.status === "in_progress" || task.status === "revision_requested"
+        ? "In Progress" : "Not Started";
+  return {
+    id: task.id,
+    brand: task.brandName,
+    initials: task.brandName.split(/\s+/).map((part) => part[0]).join("").slice(0,2).toUpperCase(),
+    content: task.title,
+    platform: task.contentType,
+    deadline: task.hasDeadline
+      ? new Intl.DateTimeFormat("en-US", {
+        month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
+      }).format(new Date(task.deadlineAt))
+      : new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" })
+        .format(new Date(`${task.scheduledDate}T12:00:00.000Z`)),
+    status,
+  };
+}
 
 
 
@@ -351,8 +359,10 @@ const dashboardTaskDetailsByTitle: Record<
 };
 export default function CreativeDashboard({
   profile,
+  backendTasks,
 }: {
   profile?: EmployeeProfile;
+  backendTasks?: TaskView[];
 }) {
   const employeeFirstName =
     profile?.full_name
@@ -379,7 +389,9 @@ export default function CreativeDashboard({
       : "Here is your creative workload, scheduled content and weekly progress.";
 
   const roleInitialTasks =
-    isVideoEditor
+    backendTasks !== undefined
+      ? backendTasks.map(mapBackendTask)
+      : isVideoEditor
       ? videoDashboardTasks
       : initialTasks;
   const [
@@ -403,7 +415,7 @@ export default function CreativeDashboard({
   const [
     selectedStartTaskId,
     setSelectedStartTaskId,
-  ] = useState<number | null>(null);
+  ] = useState<number | string | null>(null);
 
   const pendingTasks = dashboardTasks.filter(
     (task) => task.status === "Not Started",
@@ -509,30 +521,20 @@ export default function CreativeDashboard({
     };
   }, []);
 
-  const weeklyCompleted = 20;
-  const weeklyTotal = 27;
-  const weeklyPercentage = Math.round(
-    (weeklyCompleted / weeklyTotal) * 100,
-  );
-
-  const performanceYAxisMax = Math.max(
-    ...performanceData.map(
-      (entry) =>
-        entry.completed +
-        entry.remaining,
-    ),
-  );
-
-  const animatedPerformanceData =
-    performanceData.map((entry) => ({
-      ...entry,
-      completed:
-        entry.completed *
-        animationProgress,
-      remaining:
-        entry.remaining *
-        animationProgress,
-    }));
+  const assignedTotal = dashboardTasks.length;
+  const completedTotal = dashboardTasks.filter((task) =>
+    ["Published", "Approved"].includes(task.status),
+  ).length;
+  const reviewTotal = dashboardTasks.filter(
+    (task) => task.status === "In Review",
+  ).length;
+  const delayedTotal = dashboardTasks.filter(
+    (task) => task.status === "Delayed",
+  ).length;
+  const assignedPercentage =
+    assignedTotal === 0
+      ? 0
+      : Math.round((completedTotal / assignedTotal) * 100);
 
   function openStartTaskDialog() {
     setSelectedStartTaskId(
@@ -621,31 +623,35 @@ export default function CreativeDashboard({
 
           <section className="page-section-gap grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <MetricCard
-              title="Tasks Today"
-              value="6"
-              caption="2 completed, 4 remaining"
+              title="Assigned Tasks"
+              value={String(assignedTotal)}
+              caption={`${completedTotal} completed, ${assignedTotal - completedTotal} remaining`}
               icon={CalendarDays}
               featured
             />
 
             <MetricCard
-              title="Completed Today"
-              value="2"
-              caption="33% of today's workload"
+              title="Completed"
+              value={String(completedTotal)}
+              caption={`${assignedPercentage}% of assigned workload`}
               icon={Check}
             />
 
             <MetricCard
               title="Pending Review"
-              value="3"
+              value={String(reviewTotal)}
               caption="Awaiting manager feedback"
               icon={Clock3}
             />
 
             <MetricCard
               title="Delayed Tasks"
-              value="1"
-              caption="Reason needs to be updated"
+              value={String(delayedTotal)}
+              caption={
+                delayedTotal === 1
+                  ? "1 task needs attention"
+                  : `${delayedTotal} tasks need attention`
+              }
               icon={CircleAlert}
             />
           </section>
@@ -659,105 +665,26 @@ export default function CreativeDashboard({
                   </h2>
 
                   <p className="mt-1 text-xs text-[#9299a4]">
-                    Completed tasks compared with remaining workload
+                    Daily historical activity
                   </p>
                 </div>
 
 
               </div>
 
-              <div className="mt-6 h-[280px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={animatedPerformanceData}
-                    barCategoryGap="30%"
-                    margin={{
-                      top: 10,
-                      right: 0,
-                      left: -25,
-                      bottom: 0,
-                    }}
-                  >
-                    <CartesianGrid
-                      vertical={false}
-                      stroke="#eef1f5"
-                      strokeDasharray="4 4"
-                    />
-
-                    <XAxis
-                      dataKey="day"
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{
-                        fill: "#8b929d",
-                        fontSize: 12,
-                      }}
-                      dy={10}
-                    />
-
-                    <YAxis
-                      axisLine={false}
-                      tickLine={false}
-                      allowDecimals={false}
-                      domain={[0, performanceYAxisMax]}
-                      tick={{
-                        fill: "#9ba2ad",
-                        fontSize: 11,
-                      }}
-                    />
-
-                    <Tooltip
-                      cursor={{
-                        fill: "#f7f9fc",
-                      }}
-                      contentStyle={{
-                        borderRadius: "16px",
-                        border: "1px solid #edf0f5",
-                        boxShadow:
-                          "0 16px 40px rgba(24,39,75,0.10)",
-                        fontSize: "12px",
-                      }}
-                    />
-
-                    <Bar
-                      dataKey="remaining"
-                      stackId="tasks"
-                      radius={[0, 0, 10, 10]}
-
-  isAnimationActive={false}
->
-                      {performanceData.map((entry) => (
-  <Cell key={entry.day} fill="#edf1f6" />
-))}
-                    </Bar>
-
-                    <Bar
-                      dataKey="completed"
-                      stackId="tasks"
-                      radius={[10, 10, 0, 0]}
-
-  isAnimationActive={false}
->
-                      {performanceData.map((entry) => (
-                        <Cell
-                          key={entry.day}
-                          fill="#2f80ed"
-                        />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-
-              <div className="mt-4 flex flex-wrap items-center gap-5 border-t border-[#f0f2f5] pt-5 text-xs text-[#7d8490]">
-                <div className="flex items-center gap-2">
-                  <span className="size-2.5 rounded-full bg-[#2f80ed]" />
-                  Completed
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span className="size-2.5 rounded-full bg-[#edf1f6]" />
-                  Remaining
+              <div className="mt-6 flex h-[280px] w-full items-center justify-center rounded-2xl border border-dashed border-[#dfe5ed] bg-[#f8fafc] px-8 text-center">
+                <div className="max-w-md">
+                  <CalendarDays
+                    className="mx-auto text-[#8e98a7]"
+                    size={28}
+                  />
+                  <p className="mt-3 text-sm font-semibold text-[#555f6d]">
+                    Historical daily activity is not available yet
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-[#8a929e]">
+                    The current task history does not record complete daily
+                    workload snapshots, so no estimated chart is shown.
+                  </p>
                 </div>
               </div>
             </article>
@@ -766,28 +693,21 @@ export default function CreativeDashboard({
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-bold tracking-[-0.025em]">
-                    Weekly Progress
+                    Assigned Task Progress
                   </h2>
 
                   <p className="mt-1 text-xs text-[#9299a4]">
-                    Overall task completion
+                    Current authorized workload
                   </p>
                 </div>
 
-                <button
-                  type="button"
-                  aria-label="More options"
-                  className="grid size-9 place-items-center rounded-full border border-[#edf0f4] text-[#69707b]"
-                >
-                  <MoreHorizontal size={17} />
-                </button>
               </div>
 
               <WeeklyProgressMeter
-                percentage={weeklyPercentage}
+                percentage={assignedPercentage}
                 progress={animationProgress}
-                completed={weeklyCompleted}
-                total={weeklyTotal}
+                completed={completedTotal}
+                total={assignedTotal}
               />
 
               <div className="grid grid-cols-2 gap-3">
@@ -797,7 +717,7 @@ export default function CreativeDashboard({
                   </p>
 
                   <p className="mt-2 text-xl font-bold">
-                    {weeklyCompleted}
+                    {completedTotal}
                     <span className="ml-1 text-xs font-medium text-[#9299a4]">
                       tasks
                     </span>
@@ -810,7 +730,7 @@ export default function CreativeDashboard({
                   </p>
 
                   <p className="mt-2 text-xl font-bold">
-                    {weeklyTotal - weeklyCompleted}
+                    {assignedTotal - completedTotal}
                     <span className="ml-1 text-xs font-medium text-[#9299a4]">
                       tasks
                     </span>

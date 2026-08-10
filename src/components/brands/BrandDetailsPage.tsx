@@ -3,7 +3,7 @@
 import SystemTable from "@/components/ui/SystemTable";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import {
   ArrowLeft,
   CalendarDays,
@@ -24,9 +24,12 @@ import {
 import ManagementShell from "@/components/management/ManagementShell";
 import PillSelect from "@/components/ui/PillSelect";
 import {
-  brandsStorageKey,
+  createBrandScheduleSlotAction,
+  setBrandArchivedAction,
+  updateBrandAction,
+} from "@/app/brands/actions";
+import {
   buildBrandHistory,
-  initialBrands,
   weekDays,
   type Brand,
   type BrandHistoryItem,
@@ -98,13 +101,20 @@ function BrandStatusBadge({ status }: { status: BrandStatus }) {
   );
 }
 
-export default function BrandDetailsPage({ brandId }: { brandId: string }) {
-  const numericId = Number(brandId);
-  const initialBrand =
-    initialBrands.find((item) => item.id === numericId) ?? null;
-
-  const [brand, setBrand] = useState<Brand | null>(initialBrand);
-  const [hasHydrated, setHasHydrated] = useState(false);
+export default function BrandDetailsPage({
+  brandId,
+  initialBrand,
+  expectedUpdatedAt,
+  backendStatus,
+}: {
+  brandId: string;
+  initialBrand: Brand | null;
+  expectedUpdatedAt: string | null;
+  backendStatus: "active" | "paused" | "archived" | null;
+}) {
+  const [brand] = useState<Brand | null>(initialBrand);
+  const [isPending, startTransition] = useTransition();
+  const [mutationMessage, setMutationMessage] = useState<string | null>(null);
   const [rangeMode, setRangeMode] = useState<RangeMode>("Lifetime");
   const [selectedMonth, setSelectedMonth] = useState("2026-07");
   const [selectedWeek, setSelectedWeek] = useState("1");
@@ -145,58 +155,6 @@ export default function BrandDetailsPage({ brandId }: { brandId: string }) {
       cancelAnimationFrame(frame);
     };
   }, []);
-
-  useEffect(() => {
-    const frame = requestAnimationFrame(() => {
-      const stored = window.localStorage.getItem(brandsStorageKey);
-
-      if (stored) {
-        try {
-          const brands = JSON.parse(stored) as Brand[];
-          const storedBrand = brands.find((item) => item.id === numericId);
-
-          if (storedBrand) {
-            setBrand(storedBrand);
-            setEditDraft({
-              name: storedBrand.name,
-              industry: storedBrand.industry,
-              description: storedBrand.description,
-              website: storedBrand.website ?? "",
-            });
-          }
-        } catch {
-          setBrand(initialBrand);
-        }
-      }
-
-      setHasHydrated(true);
-    });
-
-    return () => cancelAnimationFrame(frame);
-  }, [initialBrand, numericId]);
-
-  useEffect(() => {
-    if (!hasHydrated || !brand) {
-      return;
-    }
-
-    const stored = window.localStorage.getItem(brandsStorageKey);
-    let brands = initialBrands;
-
-    if (stored) {
-      try {
-        brands = JSON.parse(stored) as Brand[];
-      } catch {
-        brands = initialBrands;
-      }
-    }
-
-    const nextBrands = brands.some((item) => item.id === brand.id)
-      ? brands.map((item) => (item.id === brand.id ? brand : item))
-      : [...brands, brand];
-
-    window.localStorage.setItem(brandsStorageKey, JSON.stringify(nextBrands));
-  }, [brand, hasHydrated]);
 
   const history = useMemo(
     () => (brand ? buildBrandHistory(brand) : []),
@@ -319,29 +277,70 @@ export default function BrandDetailsPage({ brandId }: { brandId: string }) {
   );
 
   function toggleStatus() {
-    setBrand((current) =>
-      current
-        ? {
-            ...current,
-            status: current.status === "Active" ? "Paused" : "Active",
-          }
-        : current,
-    );
+    if (!brand || !expectedUpdatedAt || isPending) return;
+    startTransition(async () => {
+      const result = await updateBrandAction({
+        brandId,
+        name: brand.name,
+        industry: brand.industry,
+        accentColor: brand.accent,
+        description: brand.description,
+        websiteUrl: brand.website ?? null,
+        status: brand.status === "Active" ? "paused" : "active",
+        expectedUpdatedAt,
+      });
+      if (!result.ok) {
+        setMutationMessage(result.code === "stale_update"
+          ? "This brand changed in another session. Refresh before trying again."
+          : "The brand status could not be updated.");
+        return;
+      }
+      window.location.reload();
+    });
+  }
+
+  function toggleArchive() {
+    if (!brand || !backendStatus || !expectedUpdatedAt || isPending) return;
+    const archived = backendStatus !== "archived";
+    if (archived && !window.confirm(`Archive ${brand.name}? Historical tasks will be preserved.`)) return;
+    startTransition(async () => {
+      const result = await setBrandArchivedAction({
+        brandId,
+        archived,
+        expectedUpdatedAt,
+      });
+      if (!result.ok) {
+        setMutationMessage(result.code === "stale_update"
+          ? "This brand changed in another session. Refresh before trying again."
+          : "The brand archive state could not be updated.");
+        return;
+      }
+      window.location.reload();
+    });
   }
 
   function saveBrand() {
-    setBrand((current) =>
-      current
-        ? {
-            ...current,
-            name: editDraft.name.trim() || current.name,
-            industry: editDraft.industry.trim() || current.industry,
-            description: editDraft.description.trim() || current.description,
-            website: editDraft.website.trim() || undefined,
-          }
-        : current,
-    );
-    setIsEditOpen(false);
+    if (!brand || !expectedUpdatedAt || isPending) return;
+    startTransition(async () => {
+      const result = await updateBrandAction({
+        brandId,
+        name: editDraft.name,
+        industry: editDraft.industry,
+        accentColor: brand.accent,
+        description: editDraft.description,
+        websiteUrl: editDraft.website || null,
+        status: brand.status === "Active" ? "active" : "paused",
+        expectedUpdatedAt,
+      });
+      if (!result.ok) {
+        setMutationMessage(result.code === "stale_update"
+          ? "This brand changed in another session. Refresh before trying again."
+          : "The brand could not be saved.");
+        return;
+      }
+      setIsEditOpen(false);
+      window.location.reload();
+    });
   }
 
   function openNewSlot() {
@@ -351,20 +350,39 @@ export default function BrandDetailsPage({ brandId }: { brandId: string }) {
       department: "Graphic Design",
       contentType: "Static Post",
       platforms: ["Instagram"],
-      publishingTime: "10:00 AM",
+      publishingTime: "10:00",
     });
   }
 
   function saveSlot() {
-    if (!brand || !scheduleDraft?.contentType.trim()) {
+    if (!brand || !scheduleDraft?.contentType.trim() || isPending) {
       return;
     }
-
-    setBrand({
-      ...brand,
-      weeklySchedule: [...brand.weeklySchedule, scheduleDraft],
+    const weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+    const platformMap = {
+      Facebook: "facebook", Instagram: "instagram", LinkedIn: "linkedin",
+      TikTok: "tiktok", YouTube: "youtube",
+    } as const;
+    startTransition(async () => {
+      const result = await createBrandScheduleSlotAction({
+        brandId,
+        weekday: weekdays.indexOf(scheduleDraft.day) + 1,
+        department: scheduleDraft.department === "Graphic Design"
+          ? "graphic_design"
+          : "video_editing",
+        contentType: scheduleDraft.contentType,
+        publishingTime: scheduleDraft.publishingTime,
+        platforms: scheduleDraft.platforms.map((platform) => platformMap[platform]),
+      });
+      if (!result.ok) {
+        setMutationMessage(result.code === "validation_failed"
+          ? "Check the schedule day, time, content type, and platforms."
+          : "The schedule slot could not be created.");
+        return;
+      }
+      setScheduleDraft(null);
+      window.location.reload();
     });
-    setScheduleDraft(null);
   }
 
   if (!brand) {
@@ -388,6 +406,11 @@ export default function BrandDetailsPage({ brandId }: { brandId: string }) {
 
   return (
     <ManagementShell>
+      {mutationMessage ? (
+        <p role="alert" className="mb-4 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">
+          {mutationMessage}
+        </p>
+      ) : null}
       <section className="flex flex-col justify-between gap-5 xl:flex-row xl:items-start">
         <div className="flex items-start gap-4">
           <Link
@@ -461,6 +484,7 @@ export default function BrandDetailsPage({ brandId }: { brandId: string }) {
           <button
             type="button"
             onClick={toggleStatus}
+            disabled={isPending || backendStatus === "archived"}
             className="flex items-center gap-2 rounded-full border border-[#e5e9ef] bg-white px-5 py-2.5 text-sm font-semibold"
           >
             {brand.status === "Active" ? (
@@ -468,7 +492,17 @@ export default function BrandDetailsPage({ brandId }: { brandId: string }) {
             ) : (
               <Check size={16} />
             )}
-            {brand.status === "Active" ? "Pause Brand" : "Resume Brand"}
+            {backendStatus === "archived"
+              ? "Brand Archived"
+              : brand.status === "Active" ? "Pause Brand" : "Resume Brand"}
+          </button>
+          <button
+            type="button"
+            onClick={toggleArchive}
+            disabled={isPending}
+            className="rounded-full border border-red-200 bg-white px-5 py-2.5 text-sm font-semibold text-red-600 disabled:opacity-50"
+          >
+            {backendStatus === "archived" ? "Reactivate Brand" : "Archive Brand"}
           </button>
         </div>
       </section>
@@ -1136,6 +1170,7 @@ export default function BrandDetailsPage({ brandId }: { brandId: string }) {
                   Publishing time
                 </span>
                 <input
+                  type="time"
                   value={scheduleDraft.publishingTime}
                   onChange={(event) =>
                     setScheduleDraft({
@@ -1169,9 +1204,10 @@ export default function BrandDetailsPage({ brandId }: { brandId: string }) {
               <button
                 type="button"
                 onClick={saveSlot}
+                disabled={isPending}
                 className="sm:col-span-2 rounded-full bg-[#2f80ed] px-5 py-3 text-sm font-bold text-white"
               >
-                Add Slot
+                {isPending ? "Adding..." : "Add Slot"}
               </button>
             </div>
           </div>

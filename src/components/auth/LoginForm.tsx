@@ -3,8 +3,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  useEffect,
-  useRef,
   useState,
   type FormEvent,
 } from "react";
@@ -17,10 +15,13 @@ import {
   Palette,
 } from "lucide-react";
 
-import PixelBlast from "@/components/ui/PixelBlast";
-import { createClient } from "@/lib/supabase/client";
+import { login } from "@/app/auth/actions";
 
-export default function LoginForm() {
+export default function LoginForm({
+  successMessage,
+}: {
+  successMessage?: string;
+}) {
   const router = useRouter();
 
   const [email, setEmail] = useState("");
@@ -34,52 +35,6 @@ export default function LoginForm() {
   const [isLoading, setIsLoading] =
     useState(false);
 
-  const hasLoadedRememberedEmail =
-    useRef(false);
-
-  useEffect(() => {
-    const rememberedEmail =
-      window.localStorage.getItem(
-        "creativeops-remembered-email",
-      );
-
-    const timer = window.setTimeout(() => {
-      if (rememberedEmail) {
-        setEmail(rememberedEmail);
-        setRememberMe(true);
-      }
-
-      hasLoadedRememberedEmail.current =
-        true;
-    }, 0);
-
-    return () => {
-      window.clearTimeout(timer);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!hasLoadedRememberedEmail.current) {
-      return;
-    }
-
-    const normalizedEmail = email.trim();
-
-    if (!rememberMe) {
-      window.localStorage.removeItem(
-        "creativeops-remembered-email",
-      );
-      return;
-    }
-
-    if (normalizedEmail) {
-      window.localStorage.setItem(
-        "creativeops-remembered-email",
-        normalizedEmail,
-      );
-    }
-  }, [email, rememberMe]);
-
   async function handleSubmit(
     event: FormEvent<HTMLFormElement>,
   ) {
@@ -89,30 +44,22 @@ export default function LoginForm() {
     setIsLoading(true);
 
     try {
-      const supabase = createClient();
+      const result = await login({
+        email,
+        password,
+        rememberMe,
+      });
 
-      const {
-        data,
-        error: signInError,
-      } =
-        await supabase.auth.signInWithPassword({
-          email: email.trim().toLowerCase(),
-          password,
-        });
-
-      if (signInError || !data.user) {
-        setError(
-          signInError?.message ??
-            "Login unsuccessful.",
-        );
+      if (!result.success) {
+        setError(result.message);
         return;
       }
 
-      router.replace("/dashboard");
+      router.replace(result.destination);
       router.refresh();
     } catch {
       setError(
-        "An unexpected error occurred during login.",
+        "Unable to sign in with those credentials.",
       );
     } finally {
       setIsLoading(false);
@@ -121,27 +68,9 @@ export default function LoginForm() {
 
   return (
     <main className="relative isolate flex min-h-screen min-h-[100dvh] items-center justify-center overflow-hidden bg-[#242424] px-5 py-10 sm:px-8">
-      <div className="fixed inset-0 z-0 h-screen h-[100dvh] w-screen overflow-hidden">
-        <PixelBlast
-          className="absolute inset-0 h-full w-full"
-          variant="circle"
-          pixelSize={6}
-          color="#4A9CFF"
-          patternScale={3}
-          patternDensity={1.2}
-          pixelSizeJitter={0.5}
-          enableRipples
-          rippleSpeed={0.4}
-          rippleThickness={0.12}
-          rippleIntensityScale={1.5}
-          liquid
-          liquidStrength={0.12}
-          liquidRadius={1.2}
-          liquidWobbleSpeed={5}
-          speed={0.6}
-          edgeFade={0}
-          transparent
-        />
+      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden="true">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_20%,rgba(74,156,255,0.22),transparent_32%),radial-gradient(circle_at_78%_76%,rgba(47,128,237,0.16),transparent_30%)]" />
+        <div className="absolute inset-0 opacity-30 [background-image:radial-gradient(circle,rgba(255,255,255,0.28)_1px,transparent_1px)] [background-size:22px_22px]" />
       </div>
 
       <section className="relative z-10 w-full max-w-[440px] rounded-[30px] border border-white/80 bg-white p-8 shadow-[0_32px_100px_rgba(0,0,0,0.34)] sm:p-9">
@@ -179,6 +108,14 @@ export default function LoginForm() {
           onSubmit={handleSubmit}
           className="mt-5 flex flex-col gap-5"
         >
+          {successMessage ? (
+            <div
+              role="status"
+              className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-xs font-semibold leading-5 text-emerald-700"
+            >
+              {successMessage}
+            </div>
+          ) : null}
           <label className="block">
             <span className="text-xs font-bold text-[#4d5560]">
               Email address

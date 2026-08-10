@@ -1,5 +1,26 @@
-﻿import CreativeDashboard from "@/components/dashboard/CreativeDashboard";
+import { redirect } from "next/navigation";
 
-export default function HomePage() {
-  return <CreativeDashboard />;
+import {
+  getActiveProfile,
+  getRoleDestination,
+} from "@/lib/auth/authorization";
+
+export default async function HomePage() {
+  const result = await getActiveProfile();
+
+  if (result.status === "active") {
+    redirect(
+      getRoleDestination(result.profile.role),
+    );
+  }
+
+  if (result.status === "inactive") {
+    redirect("/auth/signout?reason=inactive");
+  }
+
+  if (result.status !== "unauthenticated") {
+    redirect("/auth/signout?reason=denied");
+  }
+
+  redirect("/login");
 }

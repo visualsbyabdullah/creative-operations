@@ -1,5 +1,46 @@
-﻿import LoginForm from "@/components/auth/LoginForm";
+import { redirect } from "next/navigation";
 
-export default function LoginPage() {
-  return <LoginForm />;
+import LoginForm from "@/components/auth/LoginForm";
+import InvitationFragmentHandler from "@/components/auth/InvitationFragmentHandler";
+import {
+  getActiveProfile,
+  getRoleDestination,
+} from "@/lib/auth/authorization";
+
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    state?: string | string[];
+  }>;
+}) {
+  const result = await getActiveProfile();
+
+  if (result.status === "active") {
+    redirect(
+      getRoleDestination(result.profile.role),
+    );
+  }
+
+  if (result.status === "inactive") {
+    redirect("/auth/signout?reason=inactive");
+  }
+
+  if (result.status !== "unauthenticated") {
+    redirect("/auth/signout?reason=denied");
+  }
+
+  const state = (await searchParams).state;
+
+  return (
+    <InvitationFragmentHandler>
+      <LoginForm
+        successMessage={
+          state === "password_reset"
+            ? "Your password has been reset. Sign in with your new password."
+            : undefined
+        }
+      />
+    </InvitationFragmentHandler>
+  );
 }

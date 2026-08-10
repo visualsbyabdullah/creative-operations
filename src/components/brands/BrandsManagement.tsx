@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import {
   Check,
   CalendarDays,
@@ -19,11 +19,49 @@ import {
 import EmployeeHeader from "@/components/layout/EmployeeHeader";
 import PillSelect from "@/components/ui/PillSelect";
 import {
-  brandsStorageKey,
-  initialBrands,
-  type Brand,
-  type BrandStatus,
-} from "@/data/brands";
+  createBrandAction,
+  setBrandArchivedAction,
+  updateBrandAction,
+} from "@/app/brands/actions";
+import type { BrandView } from "@/lib/brands/brand-types";
+
+type BrandStatus = "Active" | "Paused" | "Archived";
+type DisplayBrand = {
+  id: string;
+  name: string;
+  initials: string;
+  industry: string;
+  status: BrandStatus;
+  backendStatus: "active" | "paused" | "archived";
+  accent: string;
+  description: string;
+  website?: string;
+  graphicDesigners: string[];
+  videoEditors: string[];
+  platforms: string[];
+  weeklySchedule: { department: "Graphic Design" | "Video Editing" }[];
+  updatedAt: string;
+};
+
+function toDisplayBrand(brand: BrandView): DisplayBrand | null {
+  return {
+    id: brand.id,
+    name: brand.name,
+    initials: brand.name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase(),
+    industry: brand.industry,
+    status: brand.status === "active" ? "Active"
+      : brand.status === "paused" ? "Paused" : "Archived",
+    backendStatus: brand.status,
+    accent: brand.accentColor ?? "#2f80ed",
+    description: brand.description ?? "Brand description has not been added yet.",
+    website: brand.websiteUrl ?? undefined,
+    graphicDesigners: [],
+    videoEditors: [],
+    platforms: [],
+    weeklySchedule: [],
+    updatedAt: brand.updatedAt,
+  };
+}
 
 type DepartmentFilter =
   | "All Departments"
@@ -36,6 +74,7 @@ const statusFilterOptions: { label: string; value: StatusFilter }[] = [
   { label: "All Statuses", value: "All Statuses" },
   { label: "Active", value: "Active" },
   { label: "Paused", value: "Paused" },
+  { label: "Archived", value: "Archived" },
 ];
 
 const departmentFilterOptions: { label: string; value: DepartmentFilter }[] = [
@@ -62,9 +101,12 @@ function BrandStatusBadge({ status }: { status: BrandStatus }) {
   );
 }
 
-export default function BrandsManagement() {
-  const [brands, setBrands] = useState<Brand[]>(initialBrands);
-  const [hasHydrated, setHasHydrated] = useState(false);
+export default function BrandsManagement({ backendBrands }: { backendBrands: BrandView[] }) {
+  const [brands] = useState<DisplayBrand[]>(
+    backendBrands.map(toDisplayBrand).filter((brand): brand is DisplayBrand => brand !== null),
+  );
+  const [isPending, startTransition] = useTransition();
+  const [formMessage, setFormMessage] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] =
     useState<StatusFilter>("All Statuses");
@@ -78,30 +120,6 @@ export default function BrandsManagement() {
     website: "",
     accent: "#2f80ed",
   });
-
-  useEffect(() => {
-    const frame = requestAnimationFrame(() => {
-      const stored = window.localStorage.getItem(brandsStorageKey);
-
-      if (stored) {
-        try {
-          setBrands(JSON.parse(stored) as Brand[]);
-        } catch {
-          setBrands(initialBrands);
-        }
-      }
-
-      setHasHydrated(true);
-    });
-
-    return () => cancelAnimationFrame(frame);
-  }, []);
-
-  useEffect(() => {
-    if (hasHydrated) {
-      window.localStorage.setItem(brandsStorageKey, JSON.stringify(brands));
-    }
-  }, [brands, hasHydrated]);
 
   const filteredBrands = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -143,17 +161,67 @@ export default function BrandsManagement() {
     return { total: brands.length, active, weekly, coverage };
   }, [brands]);
 
-  function toggleBrandStatus(brandId: number) {
-    setBrands((current) =>
-      current.map((brand) =>
-        brand.id === brandId
-          ? {
-              ...brand,
-              status: brand.status === "Active" ? "Paused" : "Active",
-            }
-          : brand,
-      ),
-    );
+  function toggleBrandStatus(brandId: string) {
+    const brand = brands.find((item) => item.id === brandId);
+    if (!brand || isPending) return;
+    if (brand.backendStatus === "archived") {
+      startTransition(async () => {
+        const result = await setBrandArchivedAction({
+          brandId: brand.id,
+          archived: false,
+          expectedUpdatedAt: brand.updatedAt,
+        });
+        if (!result.ok) {
+          setFormMessage(result.code === "stale_update"
+            ? "This brand changed in another session. Refresh before trying again."
+            : "The brand could not be reactivated.");
+          return;
+        }
+        window.location.reload();
+      });
+      return;
+    }
+    const nextStatus = brand.backendStatus === "active" ? "paused" : "active";
+    setFormMessage(null);
+    startTransition(async () => {
+      const result = await updateBrandAction({
+        brandId: brand.id,
+        name: brand.name,
+        industry: brand.industry,
+        accentColor: brand.accent,
+        description: brand.description,
+        websiteUrl: brand.website ?? null,
+        status: nextStatus,
+        expectedUpdatedAt: brand.updatedAt,
+      });
+      if (!result.ok) {
+        setFormMessage(result.code === "stale_update"
+          ? "This brand changed in another session. Refresh before trying again."
+          : "The brand status could not be updated.");
+        return;
+      }
+      window.location.reload();
+    });
+  }
+
+  function archiveBrand(brandId: string) {
+    const brand = brands.find((item) => item.id === brandId);
+    if (!brand || brand.backendStatus === "archived" || isPending) return;
+    if (!window.confirm(`Archive ${brand.name}? Historical tasks will be preserved.`)) return;
+    startTransition(async () => {
+      const result = await setBrandArchivedAction({
+        brandId: brand.id,
+        archived: true,
+        expectedUpdatedAt: brand.updatedAt,
+      });
+      if (!result.ok) {
+        setFormMessage(result.code === "stale_update"
+          ? "This brand changed in another session. Refresh before trying again."
+          : "The brand could not be archived.");
+        return;
+      }
+      window.location.reload();
+    });
   }
 
   function addBrand() {
@@ -161,42 +229,27 @@ export default function BrandsManagement() {
       return;
     }
 
-    const initials = newBrand.name
-      .trim()
-      .split(/\s+/)
-      .map((word) => word[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase();
-
-    setBrands((current) => [
-      ...current,
-      {
-        id: Date.now(),
-        name: newBrand.name.trim(),
-        initials,
-        industry: newBrand.industry.trim(),
-        status: "Active",
-        accent: newBrand.accent,
-        description:
-          newBrand.description.trim() ||
-          "Brand description has not been added yet.",
-        website: newBrand.website.trim() || undefined,
-        graphicDesigners: [],
-        videoEditors: [],
-        platforms: [],
-        weeklySchedule: [],
-      },
-    ]);
-
-    setNewBrand({
-      name: "",
-      industry: "",
-      description: "",
-      website: "",
-      accent: "#2f80ed",
+    setFormMessage(null);
+    startTransition(async () => {
+      const result = await createBrandAction({
+        name: newBrand.name,
+        industry: newBrand.industry,
+        accentColor: newBrand.accent,
+        description: newBrand.description || null,
+        websiteUrl: newBrand.website || null,
+      });
+      if (!result.ok) {
+        setFormMessage(result.code === "rate_limited"
+          ? "Too many brand changes. Please try again later."
+          : "The brand could not be created. Check the fields and try again.");
+        return;
+      }
+      setNewBrand({
+        name: "", industry: "", description: "", website: "", accent: "#2f80ed",
+      });
+      setIsAddModalOpen(false);
+      window.location.reload();
     });
-    setIsAddModalOpen(false);
   }
 
   return (
@@ -429,20 +482,25 @@ export default function BrandsManagement() {
                 </div>
 
                 <div className="mt-5 flex items-center justify-between border-t border-[#f0f2f5] pt-4">
-                  <button
-                    type="button"
-                    onClick={() => toggleBrandStatus(brand.id)}
-                    className="flex items-center gap-2 text-[11px] font-bold text-[#6b7380]"
-                  >
-                    {brand.status === "Active" ? (
-                      <CirclePause size={14} />
-                    ) : (
-                      <Check size={14} />
-                    )}
-                    {brand.status === "Active"
-                      ? "Pause Brand"
-                      : "Activate Brand"}
-                  </button>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => toggleBrandStatus(brand.id)}
+                      className="flex items-center gap-2 text-[11px] font-bold text-[#6b7380]"
+                    >
+                      {brand.status === "Active" ? <CirclePause size={14} /> : <Check size={14} />}
+                      {brand.status === "Active" ? "Pause" : "Activate"}
+                    </button>
+                    {brand.status !== "Archived" ? (
+                      <button
+                        type="button"
+                        onClick={() => archiveBrand(brand.id)}
+                        className="text-[11px] font-bold text-red-600"
+                      >
+                        Archive
+                      </button>
+                    ) : null}
+                  </div>
 
                   <Link
                     href={`/brands/${brand.id}`}
@@ -455,6 +513,15 @@ export default function BrandsManagement() {
               </article>
             ))}
           </section>
+
+          {formMessage ? (
+            <p
+              role="alert"
+              className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700"
+            >
+              {formMessage}
+            </p>
+          ) : null}
 
           {filteredBrands.length === 0 ? (
             <section className="mt-5 grid min-h-72 place-items-center rounded-[24px] border border-dashed border-[#dce2e9] bg-white p-8 text-center">
