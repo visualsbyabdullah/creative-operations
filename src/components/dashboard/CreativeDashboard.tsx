@@ -2,12 +2,11 @@
 
 import SystemTable from "@/components/ui/SystemTable";
 
-import {
-  useEffect,
-  useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import EmployeeHeader from "@/components/layout/EmployeeHeader";
 import CalendarDatePill from "@/components/ui/CalendarDatePill";
+import PillSelect from "@/components/ui/PillSelect";
 import { transitionTaskAction } from "@/app/tasks/actions";
 import { useRouter } from "next/navigation";
 import type { ComponentType } from "react";
@@ -19,7 +18,6 @@ import type { TaskView } from "@/lib/tasks/task-types";
 import {
   CalendarDays,
   Check,
-  ChevronDown,
   CircleAlert,
   Clock3,
   FileImage,
@@ -51,7 +49,17 @@ type Task = {
   status: TaskStatus;
   canonicalStatus?: TaskView["status"];
   updatedAt?: string;
+  sortDate?: string;
 };
+
+type DashboardSort = "default" | "brand" | "deadline" | "status";
+
+const dashboardSortOptions = [
+  { label: "Sort by", value: "default" as const },
+  { label: "Brand A–Z", value: "brand" as const },
+  { label: "Deadline", value: "deadline" as const },
+  { label: "Status", value: "status" as const },
+];
 
 type MetricCardProps = {
   title: string;
@@ -139,6 +147,7 @@ function mapBackendTask(task: TaskView): Task {
     status,
     canonicalStatus: task.status,
     updatedAt: task.updatedAt,
+    sortDate: task.deadlineAt,
   };
 }
 
@@ -418,6 +427,22 @@ export default function CreativeDashboard({
     dashboardTasks,
     setDashboardTasks,
   ] = useState<Task[]>(roleInitialTasks);
+  const [taskSearch, setTaskSearch] = useState("");
+  const [taskSort, setTaskSort] = useState<DashboardSort>("default");
+
+  const visibleDashboardTasks = useMemo(() => {
+    const query = taskSearch.trim().toLowerCase();
+    const filtered = dashboardTasks.filter((task) =>
+      !query || [task.brand, task.content, task.platform, task.status]
+        .some((value) => value.toLowerCase().includes(query)),
+    );
+    if (taskSort === "default") return filtered;
+    return [...filtered].sort((left, right) => {
+      if (taskSort === "brand") return left.brand.localeCompare(right.brand);
+      if (taskSort === "status") return left.status.localeCompare(right.status);
+      return (left.sortDate ?? left.deadline).localeCompare(right.sortDate ?? right.deadline);
+    });
+  }, [dashboardTasks, taskSearch, taskSort]);
 
 
   const [
@@ -750,18 +775,14 @@ export default function CreativeDashboard({
 
                   <input
                     type="search"
+                    value={taskSearch}
+                    onChange={(event) => setTaskSearch(event.target.value)}
                     placeholder="Search tasks..."
                     className="w-full bg-transparent text-xs text-[#303640] outline-none placeholder:text-[#a1a7b0] sm:w-40"
                   />
                 </label>
 
-                <button
-                  type="button"
-                  className="flex items-center justify-center gap-2 rounded-full bg-[#f7f8fa] px-4 py-2.5 text-xs font-semibold text-[#555c67]"
-                >
-                  Sort by
-                  <ChevronDown size={15} />
-                </button>
+                <PillSelect ariaLabel="Sort dashboard tasks" value={taskSort} options={dashboardSortOptions} onValueChange={setTaskSort} />
               </div>
             </div>
 
@@ -796,7 +817,7 @@ export default function CreativeDashboard({
                 </thead>
 
                 <tbody>
-                  {dashboardTasks.map((task) => (
+                  {visibleDashboardTasks.map((task) => (
                     <tr
                       key={task.id}
                       className="border-t border-[#f0f2f5] transition hover:bg-[#fafcff]"
