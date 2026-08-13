@@ -38,6 +38,7 @@ type PillSelectProps<
   fullWidth?: boolean;
   disabled?: boolean;
   menuAlign?: "left" | "right";
+  extraAction?: { label: string; onSelect: () => void };
 };
 
 export default function PillSelect<
@@ -52,6 +53,7 @@ export default function PillSelect<
   fullWidth = false,
   disabled = false,
   menuAlign = "right",
+  extraAction,
 }: PillSelectProps<T>) {
   const [isOpen, setIsOpen] =
     useState(false);
@@ -253,6 +255,12 @@ export default function PillSelect<
               </button>
             );
           })}
+          {extraAction ? (
+            <button type="button" onClick={() => { setIsOpen(false); extraAction.onSelect(); }}
+              className="mt-1 flex w-full items-center rounded-xl border-t border-[#edf0f5] px-3 py-2.5 text-left text-xs font-bold text-[#2f80ed] transition hover:bg-[#edf5ff]">
+              + {extraAction.label}
+            </button>
+          ) : null}
         </div>
       ) : null}
     </div>

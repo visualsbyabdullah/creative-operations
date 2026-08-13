@@ -7,6 +7,8 @@ const migration = readFileSync(join(root,
   "supabase/migrations/202608090003_employee_self_tasks.sql"), "utf8");
 const brandOptionsMigration = readFileSync(join(root,
   "supabase/migrations/202608090005_employee_self_task_brand_options.sql"), "utf8");
+const brandCreationMigration = readFileSync(join(root,
+  "supabase/migrations/202608130001_employee_self_task_brand_creation.sql"), "utf8");
 const service = readFileSync(join(root, "src/lib/tasks/task-service.ts"), "utf8");
 const page = readFileSync(join(root, "src/app/tasks/page.tsx"), "utf8");
 const component = readFileSync(join(root, "src/components/tasks/MyTasks.tsx"), "utf8");
@@ -46,6 +48,14 @@ describe("employee self-task security contract", () => {
     expect(brandOptionsMigration).toContain("b.workspace_id = v_workspace and b.status = 'active'");
     expect(brandOptionsMigration).toContain("p.role in ('graphic_designer', 'video_editor')");
     expect(brandOptionsMigration).toContain("private.current_active_profile_id()");
+  });
+
+  it("allows active creative employees to create only a minimal workspace brand", () => {
+    expect(brandCreationMigration).toContain("p.role in ('graphic_designer', 'video_editor')");
+    expect(brandCreationMigration).toContain("values (v_workspace, pg_catalog.btrim(p_name), pg_catalog.btrim(p_industry))");
+    expect(brandCreationMigration).toContain("revoke all on function public.create_self_task_brand_v1");
+    expect(brandCreationMigration).toContain("private.append_business_audit_event");
+    expect(service).toContain('Object.keys(item).some((key) => !["name", "industry"].includes(key))');
   });
 
   it("filters My Tasks by one exact date and preserves URL state", () => {

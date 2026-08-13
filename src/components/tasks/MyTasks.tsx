@@ -4,13 +4,12 @@ import SystemTable from "@/components/ui/SystemTable";
 
 import EmployeeHeader from "@/components/layout/EmployeeHeader";
 import PillSelect from "@/components/ui/PillSelect";
+import CalendarDatePill from "@/components/ui/CalendarDatePill";
 import { useEmployee } from "@/context/EmployeeContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
   CalendarDays,
-  ChevronLeft,
-  ChevronRight,
   Check,
   CircleAlert,
   Clock3,
@@ -27,8 +26,7 @@ import {
 } from "lucide-react";
 import type { TaskView } from "@/lib/tasks/task-types";
 import type { TaskOption } from "@/lib/tasks/task-types";
-import { createSelfTaskAction, submitTaskAction, transitionTaskAction } from "@/app/tasks/actions";
-import { shiftCalendarDate } from "@/lib/tasks/task-date";
+import { createSelfTaskAction, createSelfTaskBrandAction, submitTaskAction, transitionTaskAction } from "@/app/tasks/actions";
 import {
   listAttachmentsAction,
   removeAttachmentAction,
@@ -458,19 +456,20 @@ const [selectedTaskId, setSelectedTaskId] =
 
   const [showDelayForm, setShowDelayForm] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
+  const [localBrands, setLocalBrands] = useState(brands);
+  const [showAddBrand, setShowAddBrand] = useState(brands.length === 0);
+  const [brandPending, startBrandTransition] = useTransition();
+  const [brandDraft, setBrandDraft] = useState({ name: "", industry: "" });
+  const [brandMessage, setBrandMessage] = useState("");
   const [createPending, startCreateTransition] = useTransition();
   const [createMessage, setCreateMessage] = useState("");
   const [taskDraft, setTaskDraft] = useState({
     title: "",
     scheduledDate: selectedDate,
-    brandId: brands[0]?.id ?? "",
+    brandId: localBrands[0]?.id ?? "",
     priority: "medium",
     description: "",
   });
-
-  const selectedDateLabel = new Intl.DateTimeFormat("en-US", {
-    weekday: "long", year: "numeric", month: "long", day: "numeric", timeZone: "UTC",
-  }).format(new Date(`${selectedDate}T12:00:00.000Z`));
 
   useEffect(() => {
     if (!showAddTask) return;
@@ -488,7 +487,26 @@ const [selectedTaskId, setSelectedTaskId] =
   function openAddTask() {
     setTaskDraft((current) => ({ ...current, scheduledDate: selectedDate }));
     setCreateMessage("");
+    setBrandMessage("");
+    setShowAddBrand(localBrands.length === 0);
     setShowAddTask(true);
+  }
+
+  function createBrand() {
+    if (brandPending || !brandDraft.name.trim() || !brandDraft.industry.trim()) return;
+    startBrandTransition(async () => {
+      const result = await createSelfTaskBrandAction(brandDraft);
+      if (!result.ok) {
+        setBrandMessage(result.code === "validation_failed" ? "Use a unique brand name and complete both fields." : "The brand could not be added. Please try again.");
+        return;
+      }
+      const created = { id: result.data, name: brandDraft.name.trim() };
+      setLocalBrands((current) => [...current, created].sort((a, b) => a.name.localeCompare(b.name)));
+      setTaskDraft((current) => ({ ...current, brandId: created.id }));
+      setBrandDraft({ name: "", industry: "" });
+      setBrandMessage("");
+      setShowAddBrand(false);
+    });
   }
 
   function createTask() {
@@ -503,7 +521,7 @@ const [selectedTaskId, setSelectedTaskId] =
       }
       setShowAddTask(false);
       setTaskDraft({
-        title: "", scheduledDate: selectedDate, brandId: brands[0]?.id ?? "",
+        title: "", scheduledDate: selectedDate, brandId: localBrands[0]?.id ?? "",
         priority: "medium", description: "",
       });
       router.refresh();
@@ -776,37 +794,7 @@ const [selectedTaskId, setSelectedTaskId] =
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <div className="flex items-center rounded-full border border-[#e7ebf0] bg-white p-1">
-                <button
-                  type="button"
-                  aria-label="Previous day"
-                  onClick={() => navigateDate(shiftCalendarDate(selectedDate, -1))}
-                  disabled={datePending}
-                  className="grid size-9 place-items-center rounded-full text-[#59616d] transition hover:bg-[#f2f6fb] disabled:opacity-40"
-                >
-                  <ChevronLeft size={16} />
-                </button>
-                <label className="relative flex min-w-[210px] cursor-pointer items-center justify-center gap-2 px-3 text-xs font-bold text-[#39414c]">
-                  <CalendarDays size={15} className="text-[#2f80ed]" />
-                  <span>{selectedDate === today ? `Today · ${selectedDateLabel}` : selectedDateLabel}</span>
-                  <input
-                    type="date"
-                    value={selectedDate}
-                    aria-label="Select task date"
-                    onChange={(event) => navigateDate(event.target.value)}
-                    className="absolute inset-0 cursor-pointer opacity-0"
-                  />
-                </label>
-                <button
-                  type="button"
-                  aria-label="Next day"
-                  onClick={() => navigateDate(shiftCalendarDate(selectedDate, 1))}
-                  disabled={datePending}
-                  className="grid size-9 place-items-center rounded-full text-[#59616d] transition hover:bg-[#f2f6fb] disabled:opacity-40"
-                >
-                  <ChevronRight size={16} />
-                </button>
-              </div>
+              <CalendarDatePill value={selectedDate} today={today} onChange={navigateDate} disabled={datePending} ariaLabel="Select task date" />
               {selectedDate !== today ? (
                 <button
                   type="button"
@@ -819,7 +807,6 @@ const [selectedTaskId, setSelectedTaskId] =
               <button
                 type="button"
                 onClick={openAddTask}
-                disabled={brands.length === 0}
                 className="flex h-11 items-center gap-2 rounded-full bg-[#2f80ed] px-5 text-xs font-bold text-white shadow-md shadow-blue-200 transition hover:bg-[#1769d2] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <Plus size={15} />
@@ -1215,27 +1202,54 @@ const [selectedTaskId, setSelectedTaskId] =
                   className="mt-2 h-12 w-full rounded-2xl border border-[#e2e7ed] px-4 text-sm outline-none focus:border-[#2f80ed]"
                 />
               </label>
-              <label>
+              <div>
                 <span className="text-xs font-bold text-[#4d5560]">Brand</span>
-                <select
+                <div className="mt-2">
+                <PillSelect
+                  variant="field"
+                  fullWidth
+                  ariaLabel="Select brand"
                   value={taskDraft.brandId}
-                  onChange={(event) => setTaskDraft((current) => ({ ...current, brandId: event.target.value }))}
-                  className="mt-2 h-12 w-full rounded-2xl border border-[#e2e7ed] bg-white px-4 text-sm outline-none focus:border-[#2f80ed]"
-                >
-                  {brands.map((brand) => <option key={brand.id} value={brand.id}>{brand.name}</option>)}
-                </select>
-              </label>
-              <label>
+                  options={localBrands.map((brand) => ({ label: brand.name, value: brand.id }))}
+                  onValueChange={(brandId) => setTaskDraft((current) => ({ ...current, brandId }))}
+                  extraAction={{ label: "Add brand", onSelect: () => setShowAddBrand(true) }}
+                />
+                </div>
+              </div>
+              <div>
                 <span className="text-xs font-bold text-[#4d5560]">Priority</span>
-                <select
+                <div className="mt-2">
+                <PillSelect
+                  variant="field"
+                  fullWidth
+                  ariaLabel="Select priority"
                   value={taskDraft.priority}
-                  onChange={(event) => setTaskDraft((current) => ({ ...current, priority: event.target.value }))}
-                  className="mt-2 h-12 w-full rounded-2xl border border-[#e2e7ed] bg-white px-4 text-sm outline-none focus:border-[#2f80ed]"
-                >
-                  <option value="low">Low</option><option value="medium">Medium</option>
-                  <option value="high">High</option><option value="urgent">Urgent</option>
-                </select>
-              </label>
+                  options={[{ label: "Low", value: "low" }, { label: "Medium", value: "medium" }, { label: "High", value: "high" }, { label: "Urgent", value: "urgent" }]}
+                  onValueChange={(priority) => setTaskDraft((current) => ({ ...current, priority }))}
+                />
+                </div>
+              </div>
+              {showAddBrand ? (
+                <section className="sm:col-span-2 rounded-2xl border border-blue-100 bg-[#f7fbff] p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs font-bold text-[#2f80ed]">Add a new brand</p>
+                    {localBrands.length > 0 ? <button type="button" onClick={() => setShowAddBrand(false)} className="text-xs font-bold text-[#69717d]">Cancel</button> : null}
+                  </div>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <input aria-label="Brand name" placeholder="Brand name" value={brandDraft.name} maxLength={120}
+                      onChange={(event) => setBrandDraft((current) => ({ ...current, name: event.target.value }))}
+                      className="h-11 rounded-xl border border-[#dce5ef] bg-white px-3 text-sm outline-none focus:border-[#2f80ed]" />
+                    <input aria-label="Brand industry" placeholder="Industry" value={brandDraft.industry} maxLength={120}
+                      onChange={(event) => setBrandDraft((current) => ({ ...current, industry: event.target.value }))}
+                      className="h-11 rounded-xl border border-[#dce5ef] bg-white px-3 text-sm outline-none focus:border-[#2f80ed]" />
+                  </div>
+                  {brandMessage ? <p role="alert" className="mt-2 text-xs font-semibold text-red-600">{brandMessage}</p> : null}
+                  <button type="button" onClick={createBrand} disabled={brandPending || !brandDraft.name.trim() || !brandDraft.industry.trim()}
+                    className="mt-3 h-10 rounded-full bg-[#2f80ed] px-4 text-xs font-bold text-white disabled:opacity-40">
+                    {brandPending ? "Adding brand..." : "Add Brand"}
+                  </button>
+                </section>
+              ) : null}
               <label className="sm:col-span-2">
                 <span className="text-xs font-bold text-[#4d5560]">Description <span className="font-normal text-[#9299a4]">(optional)</span></span>
                 <textarea

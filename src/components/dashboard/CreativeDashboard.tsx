@@ -7,6 +7,9 @@ import {
   useState } from "react";
 
 import EmployeeHeader from "@/components/layout/EmployeeHeader";
+import CalendarDatePill from "@/components/ui/CalendarDatePill";
+import { transitionTaskAction } from "@/app/tasks/actions";
+import { useRouter } from "next/navigation";
 import type { ComponentType } from "react";
 import type { EmployeeProfile } from "@/types/auth";
 import WeeklyProgressMeter from "@/components/dashboard/WeeklyProgressMeter";
@@ -46,6 +49,8 @@ type Task = {
   platform: string;
   deadline: string;
   status: TaskStatus;
+  canonicalStatus?: TaskView["status"];
+  updatedAt?: string;
 };
 
 type MetricCardProps = {
@@ -132,6 +137,8 @@ function mapBackendTask(task: TaskView): Task {
       : new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" })
         .format(new Date(`${task.scheduledDate}T12:00:00.000Z`)),
     status,
+    canonicalStatus: task.status,
+    updatedAt: task.updatedAt,
   };
 }
 
@@ -360,15 +367,21 @@ const dashboardTaskDetailsByTitle: Record<
 export default function CreativeDashboard({
   profile,
   backendTasks,
+  today = new Date().toISOString().slice(0, 10),
 }: {
   profile?: EmployeeProfile;
   backendTasks?: TaskView[];
+  today?: string;
 }) {
+  const router = useRouter();
   const employeeFirstName =
     profile?.full_name
       ?.trim()
       .split(/\s+/)[0] ||
     "Abdullah";
+  const todayLabel = new Intl.DateTimeFormat("en-US", {
+    weekday: "long", day: "numeric", month: "long", timeZone: "UTC",
+  }).format(new Date(`${today}T12:00:00.000Z`));
 
   const isVideoEditor =
     profile?.role === "video_editor";
@@ -536,16 +549,21 @@ export default function CreativeDashboard({
       ? 0
       : Math.round((completedTotal / assignedTotal) * 100);
 
-  function openStartTaskDialog() {
-    setSelectedStartTaskId(
-      pendingTasks[0]?.id ?? null,
-    );
-    setIsStartTaskOpen(true);
-  }
-
   function closeStartTaskDialog() {
     setIsStartTaskOpen(false);
     setSelectedStartTaskId(null);
+  }
+
+  async function startTask(task: Task) {
+    if (!task.canonicalStatus || !task.updatedAt || !["assigned", "revision_requested"].includes(task.canonicalStatus)) return;
+    const result = await transitionTaskAction({
+      taskId: String(task.id), expectedFrom: task.canonicalStatus, toStatus: "in_progress", reason: null,
+    });
+    if (!result.ok) return;
+    const startedTask: Task = { ...task, status: "In Progress", canonicalStatus: "in_progress", updatedAt: result.data.updatedAt };
+    setDashboardTasks((currentTasks) => currentTasks.map((item) => item.id === startedTask.id ? startedTask : item));
+    setSelectedDashboardTask(startedTask as unknown as Record<string, unknown>);
+    closeStartTaskDialog();
   }
 
   function handleStartSelectedTask() {
@@ -561,27 +579,7 @@ export default function CreativeDashboard({
       return;
     }
 
-    const startedTask: Task = {
-      ...selectedTask,
-      status: "In Progress",
-    };
-
-    setDashboardTasks((currentTasks) =>
-      currentTasks.map((task) =>
-        task.id === startedTask.id
-          ? startedTask
-          : task,
-      ),
-    );
-
-    closeStartTaskDialog();
-
-    setSelectedDashboardTask(
-      startedTask as unknown as Record<
-        string,
-        unknown
-      >,
-    );
+    void startTask(selectedTask);
   }
 
   return (
@@ -593,7 +591,7 @@ export default function CreativeDashboard({
           <section className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
             <div>
               <p className="text-sm font-semibold text-[#2f80ed]">
-                Wednesday, 22 July
+                {todayLabel}
               </p>
 
               <h1 className="mt-2 text-3xl font-semibold tracking-[-0.045em] sm:text-4xl">
@@ -607,17 +605,7 @@ export default function CreativeDashboard({
 
             <div className="flex flex-wrap items-center gap-2">
 
-              <button
-                type="button"
-                onClick={openStartTaskDialog}
-                disabled={pendingTasks.length === 0}
-                className="flex items-center gap-2 rounded-full bg-brand-blue-gradient px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-200 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
-              >
-                <Play size={15} fill="currentColor" />
-                {pendingTasks.length === 0
-                  ? "No Pending Tasks"
-                  : "Start Task"}
-              </button>
+              <CalendarDatePill value={today} today={today} onChange={(date) => router.push(`/tasks?date=${date}`)} ariaLabel="Open tasks for date" />
             </div>
           </section>
 
@@ -1218,6 +1206,14 @@ export default function CreativeDashboard({
                     "Detailed task brief has not been added yet."}
                 </p>
               </section>
+              {String(selectedDashboardTask.status ?? "") === "Not Started" ? (
+                <button type="button" onClick={() => {
+                  const task = dashboardTasks.find((item) => String(item.id) === String(selectedDashboardTask.id));
+                  if (task) void startTask(task);
+                }} className="flex h-11 w-full items-center justify-center gap-2 rounded-full bg-brand-blue-gradient px-5 text-xs font-bold text-white shadow-lg shadow-blue-200 transition hover:-translate-y-0.5">
+                  <Play size={14} fill="currentColor" /> Start Task
+                </button>
+              ) : null}
             </div>
           </aside>
         </>

@@ -4,10 +4,17 @@ import { revalidatePath } from "next/cache";
 import {
   createAssignedTask,
   createSelfTask,
+  createSelfTaskBrand,
   editAssignedTask,
   submitTaskWork,
   transitionTask,
 } from "@/lib/tasks/task-service";
+
+export async function createSelfTaskBrandAction(input: unknown) {
+  const result = await createSelfTaskBrand(input);
+  if (result.ok) revalidatePath("/tasks");
+  return result;
+}
 
 export async function transitionTaskAction(input: unknown) {
   const result = await transitionTask(input);

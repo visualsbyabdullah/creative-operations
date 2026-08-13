@@ -34,6 +34,22 @@ export async function getSelfTaskOptions(): Promise<TaskOption[]> {
   }));
 }
 
+export async function createSelfTaskBrand(input: unknown): Promise<ActionResult<string>> {
+  const item = input && typeof input === "object" && !Array.isArray(input) ? input as Record<string, unknown> : null;
+  const name = typeof item?.name === "string" ? item.name.trim() : "";
+  const industry = typeof item?.industry === "string" ? item.industry.trim() : "";
+  if (!item || Object.keys(item).some((key) => !["name", "industry"].includes(key)) || !name || name.length > 120 || !industry || industry.length > 120) {
+    return { ok: false, code: "validation_failed" };
+  }
+  const actor = await getActiveProfile();
+  if (actor.status !== "active" || !["graphic_designer", "video_editor"].includes(actor.profile.role)) return { ok: false, code: "forbidden" };
+  const client = await createClient();
+  const { data, error } = await client.rpc("create_self_task_brand_v1", { p_name: name, p_industry: industry });
+  if (error?.code === "23505" || error?.code === "22023") return { ok: false, code: "validation_failed" };
+  if (error?.code === "42501") return { ok: false, code: "forbidden" };
+  return error || typeof data !== "string" ? { ok: false, code: "temporarily_unavailable" } : { ok: true, data };
+}
+
 export async function createSelfTask(input: unknown): Promise<ActionResult<string>> {
   const item = input && typeof input === "object" && !Array.isArray(input)
     ? input as Record<string, unknown> : null;
