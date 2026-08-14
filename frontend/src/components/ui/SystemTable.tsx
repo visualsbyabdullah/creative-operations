@@ -28,6 +28,7 @@ export default function SystemTable({
     "--system-table-columns": String(columns),
     "--system-table-min-width": `${minWidth}px`,
     "--system-table-cell-width": `${cellWidth}px`,
+    "--system-table-template": `repeat(${columns - 1}, ${cellWidth}px) auto`,
   } as CSSProperties;
 
   return (

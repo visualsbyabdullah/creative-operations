@@ -16,10 +16,7 @@
 .table > thead > tr,
 .table > tbody > tr {
   display: grid;
-  grid-template-columns: repeat(
-    var(--system-table-columns),
-    var(--system-table-cell-width)
-  );
+  grid-template-columns: var(--system-table-template);
   justify-content: space-between;
   align-items: center;
   width: 100%;
@@ -44,19 +41,20 @@
 
 .table th:last-child,
 .table td:last-child {
+  width: auto !important;
+  max-width: none !important;
+  min-width: 96px;
+}
+
+.table td:last-child {
   justify-self: end;
   text-align: right !important;
 }
 
-.table th:last-child > *,
 .table td:last-child > * {
   width: fit-content !important;
+  min-width: 96px;
   margin-left: auto !important;
   margin-right: 0 !important;
   text-align: right !important;
-}
-
-.table th:first-child,
-.table td:first-child {
-  justify-self: start;
 }

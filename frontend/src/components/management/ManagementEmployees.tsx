@@ -392,8 +392,8 @@ export default function ManagementEmployees({
                       aria-label={`Open ${member.name} details`}
                       className="flex items-center gap-2 rounded-full border border-[#e8ecf2] px-4 py-2 text-[11px] font-bold text-[#4f5762] transition hover:border-[#2f80ed] hover:text-[#2f80ed]"
                     >
-                      <Eye size={14} />
                       View
+                      <Eye size={14} />
                     </button>
                   </td>
                 </tr>
