@@ -12,6 +12,9 @@ const brandCreationMigration = readFileSync(join(root,
 const service = readFileSync(join(root, "src/lib/tasks/task-service.ts"), "utf8");
 const page = readFileSync(join(root, "src/app/tasks/page.tsx"), "utf8");
 const component = readFileSync(join(root, "src/components/tasks/MyTasks.tsx"), "utf8");
+const calendar = readFileSync(join(root, "src/components/ui/CalendarDatePill.tsx"), "utf8");
+const completionMigration = readFileSync(join(root,
+  "supabase/migrations/202608140001_employee_complete_self_task.sql"), "utf8");
 
 describe("employee self-task security contract", () => {
   it("derives creator and assignee from the authenticated employee", () => {
@@ -58,10 +61,18 @@ describe("employee self-task security contract", () => {
     expect(service).toContain('Object.keys(item).some((key) => !["name", "industry"].includes(key))');
   });
 
-  it("filters My Tasks by one exact date and preserves URL state", () => {
-    expect(page).toContain("startDate: selectedDate, endDate: selectedDate");
+  it("shows all assigned tasks while preserving selected-date progress", () => {
+    expect(page).toContain("listTasks()");
+    expect(component).toContain("task.scheduledDate === selectedDate");
     expect(component).toContain("/tasks?date=${date}");
-    expect(component).toContain('type="date"');
+    expect(calendar).toContain('role="dialog"');
+    expect(calendar).not.toContain('type="date"');
+  });
+
+  it("allows direct completion only for an assignee's personal self-task", () => {
+    expect(completionMigration).toContain("private.is_task_assignee(p_task_id)");
+    expect(completionMigration).toContain("v_task.created_by = v_actor and v_task.content_type = 'Personal Task'");
+    expect(completionMigration).toContain("private.append_business_audit_event");
   });
 
   it("does not expose an assignee selector in the employee task dialog", () => {

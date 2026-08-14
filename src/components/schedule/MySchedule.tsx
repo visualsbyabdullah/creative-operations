@@ -11,10 +11,13 @@ import {
   CircleAlert,
   Clock3,
   ExternalLink,
+  Eye,
   FileImage,
   Film,
   Link2,
+  Play,
   Search,
+  X,
 } from "lucide-react";
 
 import EmployeeHeader from "@/components/layout/EmployeeHeader";
@@ -26,6 +29,7 @@ import type {
 
 import { useEmployee } from "@/context/EmployeeContext";
 import type { TaskView } from "@/lib/tasks/task-types";
+import { transitionTaskAction } from "@/app/tasks/actions";
 
 type WeekDay =
   | "Monday"
@@ -64,6 +68,10 @@ type ScheduleTask = {
   submissionLink?: string;
   publishedLink?: string;
   delayReason?: string;
+  description?: string;
+  canonicalStatus?: TaskView["status"];
+  updatedAt?: string;
+  source?: TaskView["source"];
 };
 
 type DayFilter = "All Days" | WeekDay;
@@ -288,6 +296,10 @@ function mapTask(task: TaskView): ScheduleTask | null {
       : "No deadline",
     status: task.delayReason ? "Delayed" : canonicalStatus[task.status],
     delayReason: task.delayReason ?? undefined,
+    description: task.description,
+    canonicalStatus: task.status,
+    updatedAt: task.updatedAt,
+    source: task.source,
   };
 }
 
@@ -331,6 +343,29 @@ export default function MySchedule({
 
   const [searchQuery, setSearchQuery] =
     useState(initialFilters.search);
+  const [selectedTask, setSelectedTask] = useState<ScheduleTask | null>(null);
+  const [actionPending, startActionTransition] = useTransition();
+  const [actionMessage, setActionMessage] = useState("");
+
+  function updateSelectedTask() {
+    if (!selectedTask?.canonicalStatus || actionPending) return;
+    const toStatus = selectedTask.canonicalStatus === "in_progress" ? "completed" : "in_progress";
+    setActionMessage("");
+    startActionTransition(async () => {
+      const result = await transitionTaskAction({
+        taskId: String(selectedTask.id),
+        expectedFrom: selectedTask.canonicalStatus,
+        toStatus,
+        reason: null,
+      });
+      if (!result.ok) {
+        setActionMessage(result.code === "stale_update" ? "Task changed elsewhere. Refresh and try again." : "Status could not be updated.");
+        return;
+      }
+      setSelectedTask(null);
+      router.refresh();
+    });
+  }
   function updateServerFilter(key:string,value:string|null){
     const params=new URLSearchParams(window.location.search);
     if(value&&value!=="All Days"&&value!=="All Statuses")params.set(key,value);
@@ -758,15 +793,14 @@ export default function MySchedule({
                               </span>
                             </div>
 
-                            <a
-                              href={`/tasks?task=${task.id}`}
+                            <button
+                              type="button"
+                              onClick={() => { setSelectedTask(task); setActionMessage(""); }}
                               className="grid size-8 place-items-center rounded-full border border-[#e7ebf0] text-[#2f80ed]"
-                              aria-label={`Open ${task.title}`}
+                              aria-label={`View ${task.title}`}
                             >
-                              <ExternalLink
-                                size={13}
-                              />
-                            </a>
+                              <Eye size={14} />
+                            </button>
                           </div>
 
                           {task.delayReason ? (
@@ -853,6 +887,40 @@ export default function MySchedule({
           </section>
         </div>
       </section>
+      {selectedTask ? (
+        <div className="fixed inset-0 z-[120] flex justify-end bg-[#17202d]/35 backdrop-blur-[2px]" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedTask(null); }}>
+          <aside role="dialog" aria-modal="true" aria-label={`${selectedTask.title} details`} className="h-full w-full max-w-[520px] overflow-y-auto bg-white p-6 shadow-[-24px_0_70px_rgba(24,39,75,0.18)] sm:p-8">
+            <div className="flex items-start justify-between gap-4 border-b border-[#edf0f5] pb-5">
+              <div>
+                <p className="text-xs font-bold text-[#2f80ed]">{selectedTask.brand}</p>
+                <h2 className="mt-2 text-2xl font-bold tracking-[-0.04em]">{selectedTask.title}</h2>
+              </div>
+              <button type="button" aria-label="Close task details" onClick={() => setSelectedTask(null)} className="grid size-10 shrink-0 place-items-center rounded-full bg-[#f4f6f9] text-[#53606d]"><X size={18} /></button>
+            </div>
+            <div className="mt-6 flex items-center justify-between rounded-[20px] bg-[#f6f8fb] p-4">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#929aa6]">Content type</p>
+                <p className="mt-1 text-sm font-bold">{selectedTask.contentType}</p>
+              </div>
+              <StatusBadge status={selectedTask.status} />
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <div className="rounded-2xl border border-[#edf0f5] p-4"><p className="text-[10px] font-bold uppercase text-[#929aa6]">Schedule</p><p className="mt-2 text-sm font-bold">{selectedTask.day}, {selectedTask.date}</p></div>
+              <div className="rounded-2xl border border-[#edf0f5] p-4"><p className="text-[10px] font-bold uppercase text-[#929aa6]">Deadline</p><p className="mt-2 text-sm font-bold">{selectedTask.deadline}</p></div>
+            </div>
+            <section className="mt-4 rounded-[20px] border border-[#edf0f5] p-4">
+              <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#929aa6]">Task brief</p>
+              <p className="mt-3 text-sm leading-6 text-[#65707c]">{selectedTask.description || "A detailed task brief has not been added yet."}</p>
+            </section>
+            {actionMessage ? <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-xs font-semibold text-red-700">{actionMessage}</p> : null}
+            {(selectedTask.canonicalStatus === "assigned" || selectedTask.canonicalStatus === "revision_requested") ? (
+              <button type="button" disabled={actionPending} onClick={updateSelectedTask} className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-[#2f80ed] px-5 py-3.5 text-sm font-bold text-white disabled:opacity-50"><Play size={16} />{actionPending ? "Starting…" : "Start Task"}</button>
+            ) : selectedTask.canonicalStatus === "in_progress" && selectedTask.source === "self_created" ? (
+              <button type="button" disabled={actionPending} onClick={updateSelectedTask} className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-emerald-600 px-5 py-3.5 text-sm font-bold text-white disabled:opacity-50"><Check size={17} />{actionPending ? "Completing…" : "Complete Task"}</button>
+            ) : null}
+          </aside>
+        </div>
+      ) : null}
     </main>
   );
 }

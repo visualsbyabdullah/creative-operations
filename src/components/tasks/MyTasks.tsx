@@ -81,6 +81,7 @@ type CreativeTask = {
   feedback?: string;
   canonicalStatus?: TaskView["status"];
   updatedAt?: string;
+  scheduledDate?: string;
 };
 
 type StatusFilter = "All Statuses" | TaskStatus;
@@ -422,6 +423,7 @@ export default function MyTasks({
           delayReason: task.delayReason ?? undefined,
           canonicalStatus: task.status,
           updatedAt: task.updatedAt,
+          scheduledDate: task.scheduledDate,
         }));
       }
       return initialTasks.filter(
@@ -576,7 +578,7 @@ const [selectedTaskId, setSelectedTaskId] =
       (task) => task.status === "Delayed",
     ).length;
 
-    const todayTasks = tasks;
+    const todayTasks = tasks.filter((task) => task.scheduledDate === selectedDate);
 
     const todayCompleted = todayTasks.filter((task) =>
       ["Approved", "Completed"].includes(task.status),
@@ -604,7 +606,7 @@ const [selectedTaskId, setSelectedTaskId] =
       weeklyPercentage,
       dailyPercentage,
     };
-  }, [tasks]);
+  }, [tasks, selectedDate]);
 
   function openTask(task: CreativeTask) {
     setSelectedTaskId(task.id);
