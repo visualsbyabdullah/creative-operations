@@ -132,7 +132,7 @@ export default function ManagementDashboard({ profile,data }: { profile: Employe
               </div>
 
               <div className="dashboard-scrollbar overflow-x-auto">
-                <SystemTable columns={5} minWidth={920} cellWidth={144}>
+                <SystemTable columns={5} minWidth={700} cellWidth={144}>
                   <thead className="bg-[#fafbfc] text-[10px] uppercase tracking-[0.08em] text-[#949ba6]">
                     <tr><th className="px-6 py-4">Employee</th><th className="px-6 py-4">Active</th><th className="px-6 py-4">Completed</th><th className="px-6 py-4">Weekly Progress</th><th className="px-6 py-4"><div className="text-left">Workload Status</div></th></tr>
                   </thead>
