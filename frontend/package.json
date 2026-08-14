@@ -1,0 +1,5 @@
+{
+  "name": "@creative-operations/frontend",
+  "private": true,
+  "description": "Next.js App Router UI and transport adapters; commands are orchestrated from the repository root."
+}

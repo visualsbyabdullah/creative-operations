@@ -1,0 +1,136 @@
+openapi: 3.1.0
+info:
+  title: Creative Operations Application API
+  version: 1.0.0
+  description: Versioned HTTP endpoints currently implemented by the application.
+servers:
+  - url: /api/v1
+paths:
+  /auth/me:
+    get:
+      summary: Return the active authenticated profile
+      responses:
+        "200":
+          description: Active profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileResponse"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+  /tasks:
+    get:
+      summary: List tasks authorized for the active profile
+      responses:
+        "200":
+          description: Authorized task list
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, data]
+                properties:
+                  ok: { const: true }
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Task" }
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+  /tasks/{taskId}/start:
+    post:
+      summary: Start an authorized assigned task
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "200": { $ref: "#/components/responses/TransitionSuccess" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Stale" }
+  /tasks/{taskId}/complete:
+    post:
+      summary: Complete an authorized self-created personal task
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "200": { $ref: "#/components/responses/TransitionSuccess" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Stale" }
+components:
+  parameters:
+    TaskId:
+      name: taskId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  schemas:
+    ApiError:
+      type: object
+      required: [ok, error]
+      properties:
+        ok: { const: false }
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+    ProfileResponse:
+      type: object
+      required: [ok, data]
+      properties:
+        ok: { const: true }
+        data:
+          type: object
+          required: [id, email, fullName, role]
+          properties:
+            id: { type: string, format: uuid }
+            email: { type: string, format: email }
+            fullName: { type: string }
+            role: { type: string, enum: [manager, hr, graphic_designer, video_editor] }
+            department: { type: [string, "null"] }
+            timezone: { type: [string, "null"] }
+    Task:
+      type: object
+      required: [id, title, status, scheduledDate]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        status: { type: string }
+        scheduledDate: { type: string, format: date }
+    TransitionResponse:
+      type: object
+      required: [ok, data]
+      properties:
+        ok: { const: true }
+        data:
+          type: object
+          required: [updatedAt]
+          properties:
+            updatedAt: { type: string, format: date-time }
+  responses:
+    TransitionSuccess:
+      description: Task transitioned
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/TransitionResponse" }
+    Unauthenticated:
+      description: Authentication required
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ApiError" }
+    Forbidden:
+      description: Operation not permitted
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ApiError" }
+    NotFound:
+      description: Task not found in authorized scope
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ApiError" }
+    Stale:
+      description: Optimistic concurrency conflict
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ApiError" }

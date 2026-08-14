@@ -16,6 +16,8 @@
 # next.js
 /.next/
 /out/
+/frontend/.next/
+/frontend/out/
 
 # production
 /build
@@ -40,6 +42,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+!frontend/next-env.d.ts
 
 # Local backup files
 *.bak

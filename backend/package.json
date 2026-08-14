@@ -1,0 +1,5 @@
+{
+  "name": "@creative-operations/backend",
+  "private": true,
+  "description": "Server-only domain, security, Supabase, API handler, and database assets."
+}
