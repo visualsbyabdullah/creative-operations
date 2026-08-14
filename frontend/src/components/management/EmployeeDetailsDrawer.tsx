@@ -1,10 +1,11 @@
 "use client";
 
-import { Pencil, UserX, X } from "lucide-react";
+import { Pencil, UserCheck, UserX, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 
 import WeeklyProgressMeter from "@frontend/components/dashboard/WeeklyProgressMeter";
+import PillSelect from "@frontend/components/ui/PillSelect";
 
 export type EmployeeDrawerData = {
   name: string;
@@ -37,7 +38,28 @@ const workloadStatusStyles: Record<
   Delayed: "bg-red-50 text-red-700",
 };
 
-const dayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+type ActivityRange = "Weekly" | "15 Days" | "Monthly" | "Yearly";
+
+const activityRangeOptions: { label: string; value: ActivityRange }[] = [
+  { label: "Weekly", value: "Weekly" },
+  { label: "15 Days", value: "15 Days" },
+  { label: "Monthly", value: "Monthly" },
+  { label: "Yearly", value: "Yearly" },
+];
+
+const activityRangeSubtitle: Record<ActivityRange, string> = {
+  Weekly: "Monday to Friday task completion",
+  "15 Days": "Task completion across the last 15 days",
+  Monthly: "Task completion across the month",
+  Yearly: "Task completion across the year",
+};
+
+const activityRangeLabels: Record<ActivityRange, string[]> = {
+  Weekly: ["Mon", "Tue", "Wed", "Thu", "Fri"],
+  "15 Days": Array.from({ length: 15 }, (_, index) => String(index + 1)),
+  Monthly: Array.from({ length: 30 }, (_, index) => String(index + 1)),
+  Yearly: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+};
 
 export default function EmployeeDetailsDrawer({
   employee,
@@ -49,6 +71,7 @@ export default function EmployeeDetailsDrawer({
   onDelete,
 }: EmployeeDetailsDrawerProps) {
   const [animationProgress, setAnimationProgress] = useState(0);
+  const [range, setRange] = useState<ActivityRange>("Weekly");
   const animationKey = employee
     ? `${employee.name}-${employee.progress}-${employee.completed}-${employee.active}`
     : null;
@@ -158,18 +181,29 @@ export default function EmployeeDetailsDrawer({
               </div>
 
               <section className="rounded-[20px] border border-[#edf0f5] p-5">
-                <div>
-                  <p className="text-sm font-bold">Weekly Activity</p>
-                  <p className="mt-1 text-xs text-[#9299a4]">
-                    Monday to Friday task completion
-                  </p>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-bold">Activity</p>
+                    <p className="mt-1 text-xs text-[#9299a4]">
+                      {activityRangeSubtitle[range]}
+                    </p>
+                  </div>
+
+                  <PillSelect<ActivityRange>
+                    value={range}
+                    options={activityRangeOptions}
+                    onValueChange={setRange}
+                    ariaLabel="Select activity range"
+                  />
                 </div>
 
                 {employee.weekly?.length ? (
                 <div className="mt-5 flex h-44 items-end justify-between gap-3">
-                  {employee.weekly.map((value, index) => (
+                  {employee.weekly.map((value, index) => {
+                    const labels = activityRangeLabels[range];
+                    return (
                     <div
-                      key={`${dayLabels[index] ?? index}-${value}`}
+                      key={`${labels[index] ?? index}-${value}-${range}`}
                       className="flex h-full flex-1 flex-col items-center justify-end gap-2"
                     >
                       <span className="text-[9px] font-bold text-[#2f80ed]">
@@ -186,16 +220,19 @@ export default function EmployeeDetailsDrawer({
                       </div>
 
                       <span className="text-[9px] font-semibold text-[#9299a4]">
-                        {dayLabels[index] ?? `Day ${index + 1}`}
+                        {labels[index] ?? `Day ${index + 1}`}
                       </span>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
                 ) : (
                   <div className="mt-5 rounded-2xl border border-dashed border-[#dfe5ed] bg-[#f8fafc] p-6 text-center">
                     <p className="text-xs font-bold text-[#626b77]">Historical activity unavailable</p>
                     <p className="mt-1 text-[10px] leading-5 text-[#9299a4]">
-                      Complete employee-by-day task snapshots are not recorded.
+                      {range === "Weekly"
+                        ? "Complete employee-by-day task snapshots are not recorded."
+                        : "Activity snapshots for this range are not recorded yet."}
                     </p>
                   </div>
                 )}
@@ -291,10 +328,20 @@ export default function EmployeeDetailsDrawer({
                 <button
                   type="button"
                   onClick={onDelete}
-                  className="flex items-center justify-center gap-2 rounded-full border border-red-100 bg-red-50 px-5 py-3 text-xs font-bold text-red-600"
+                  className={`flex items-center justify-center gap-2 rounded-full border px-5 py-3 text-xs font-bold ${
+                    employee.status === "Inactive"
+                      ? "border-emerald-100 bg-emerald-50 text-emerald-700"
+                      : "border-red-100 bg-red-50 text-red-600"
+                  }`}
                 >
-                  <UserX size={14} />
-                  Deactivate Employee
+                  {employee.status === "Inactive" ? (
+                    <UserCheck size={14} />
+                  ) : (
+                    <UserX size={14} />
+                  )}
+                  {employee.status === "Inactive"
+                    ? "Activate Employee"
+                    : "Deactivate Employee"}
                 </button>
               ) : null}
             </div>

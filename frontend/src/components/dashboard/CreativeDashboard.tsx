@@ -875,9 +875,10 @@ export default function CreativeDashboard({
         >,
       )
     }
-    className="grid size-9 place-items-center rounded-full border border-[#e7ebf0] text-[#69717d] transition hover:border-[#2f80ed] hover:bg-[#edf5ff] hover:text-[#2f80ed]"
+    className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-[#e7ebf0] px-4 py-2 text-[10px] font-bold text-[#69717d] transition hover:border-[#2f80ed] hover:bg-[#edf5ff] hover:text-[#2f80ed]"
   >
-    <Eye size={15} />
+    <Eye size={13} />
+    View
   </button>
 
 </td>

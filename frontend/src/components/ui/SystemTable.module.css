@@ -37,18 +37,23 @@
   text-align: left !important;
 }
 
+.table th:first-child,
+.table td:first-child {
+  justify-self: start;
+}
+
 .table th:last-child,
 .table td:last-child {
   justify-self: end;
-  text-align: left !important;
+  text-align: right !important;
 }
 
 .table th:last-child > *,
 .table td:last-child > * {
   width: fit-content !important;
-  margin-left: 0 !important;
-  margin-right: auto !important;
-  text-align: left !important;
+  margin-left: auto !important;
+  margin-right: 0 !important;
+  text-align: right !important;
 }
 
 .table th:first-child,

@@ -2,11 +2,11 @@
 
 import SystemTable from "@frontend/components/ui/SystemTable";
 
-import { Check, Clock3, ExternalLink, FileText, RotateCcw, Send, Trash2, X } from "lucide-react";
+import { Check, Clock3, ExternalLink, FileText, Loader2, RotateCcw, Send, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import ManagementShell from "./ManagementShell";
 import type { SubmissionView } from "@shared/contracts/submission-types";
-import { publishSubmissionAction, requestRevisionAction } from "@frontend/app/submissions/actions";
+import { submitFeedbackAction } from "@frontend/app/submissions/actions";
 import {
   listAttachmentsAction,
   removeAttachmentAction,
@@ -58,7 +58,8 @@ export default function ManagementSubmissions({backendItems}:{backendItems?:Subm
     backendItems===undefined?initialItems:backendItems.map(mapSubmission));
   const [selectedId, setSelectedId] = useState<number|string|null>(null);
   const [feedback, setFeedback] = useState("");
-  const [publishedUrl,setPublishedUrl]=useState("");
+  const [feedbackPending,setFeedbackPending]=useState(false);
+  const [feedbackMessage,setFeedbackMessage]=useState("");
   const [attachments,setAttachments]=useState<AttachmentView[]>([]);
   const [attachmentsPending,setAttachmentsPending]=useState(false);
   const [attachmentMessage,setAttachmentMessage]=useState("");
@@ -104,23 +105,30 @@ export default function ManagementSubmissions({backendItems}:{backendItems?:Subm
     const item = items.find((entry) => entry.id === id);
     setAttachments([]);
     setAttachmentMessage("");
+    setFeedbackMessage("");
     setAttachmentsPending(true);
     setSelectedId(id);
     setFeedback(item?.feedback ?? "");
   }
 
-  async function updateStatus(status: ReviewStatus) {
-    if (!selected || (status === "Revision Required" && !feedback.trim())) return;
-    if(!selected.updatedAt||!selected.taskUpdatedAt)return;
-    const result=status==="Revision Required"
-      ?await requestRevisionAction({submissionId:String(selected.id),feedback,
-        expectedUpdatedAt:selected.updatedAt,expectedTaskUpdatedAt:selected.taskUpdatedAt})
-      :await publishSubmissionAction({submissionId:String(selected.id),publishedUrl,
-        expectedUpdatedAt:selected.updatedAt,expectedTaskUpdatedAt:selected.taskUpdatedAt});
-    if(!result.ok)return;
-    setItems(current=>current.map(item=>item.id===selected.id?{...item,status,
-      feedback:status==="Revision Required"?feedback.trim():undefined}:item));
-
+  async function submitFeedback() {
+    if (!selected || !feedback.trim() || feedbackPending) return;
+    if(!selected.updatedAt||!selected.taskUpdatedAt){
+      setFeedbackMessage("Feedback could not be saved safely.");
+      return;
+    }
+    setFeedbackPending(true);
+    setFeedbackMessage("");
+    const result=await submitFeedbackAction({submissionId:String(selected.id),feedback,
+      expectedUpdatedAt:selected.updatedAt,expectedTaskUpdatedAt:selected.taskUpdatedAt});
+    setFeedbackPending(false);
+    if(!result.ok){
+      setFeedbackMessage(result.code==="stale_update"
+        ?"This submission changed since it was loaded. Close and reopen it before saving feedback."
+        :"Feedback could not be saved safely.");
+      return;
+    }
+    setItems(current=>current.map(item=>item.id===selected.id?{...item,feedback:feedback.trim()}:item));
     setSelectedId(null);
     setFeedback("");
   }
@@ -257,23 +265,13 @@ export default function ManagementSubmissions({backendItems}:{backendItems?:Subm
                 <span className="text-xs font-bold text-[#4d5560]">Revision feedback</span>
                 <textarea value={feedback} onChange={(event) => setFeedback(event.target.value)} rows={5} placeholder="Explain what needs to be changed..." className="mt-2 w-full resize-none rounded-2xl border border-[#e5e9ef] p-4 text-sm leading-6 outline-none focus:border-[#2f80ed]" />
               </label>
-              <label>
-                <span className="text-xs font-bold text-[#4d5560]">Published HTTPS URL</span>
-                <input type="url" value={publishedUrl}
-                  onChange={(event)=>setPublishedUrl(event.target.value)}
-                  placeholder="https://..." className="mt-2 w-full rounded-2xl border border-[#e5e9ef] p-4 text-sm outline-none focus:border-[#2f80ed]"/>
-              </label>
 
-              <div className="grid grid-cols-2 gap-3">
-                <button type="button" onClick={() => updateStatus("Revision Required")} disabled={!feedback.trim()} className="flex items-center justify-center gap-2 rounded-full border border-orange-100 bg-orange-50 px-5 py-3 text-xs font-bold text-orange-700 disabled:cursor-not-allowed disabled:opacity-40">
-                  <RotateCcw size={14} /> Request Revision
-                </button>
-                <button type="button" onClick={() => updateStatus("Approved")}
-                  disabled={!publishedUrl.startsWith("https://")}
-                  className="flex items-center justify-center gap-2 rounded-full bg-emerald-600 px-5 py-3 text-xs font-bold text-white disabled:opacity-40">
-                  <Check size={14} /> Approve & Publish
-                </button>
-              </div>
+              <button type="button" onClick={() => submitFeedback()} disabled={!feedback.trim()||feedbackPending} className="mt-5 flex w-full items-center justify-center gap-2 rounded-full bg-[#2f80ed] px-5 py-3 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40">
+                {feedbackPending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} {feedbackPending ? "Saving…" : "Submit Feedback"}
+              </button>
+              {feedbackMessage ? (
+                <p className="text-xs font-semibold text-orange-700" role="status">{feedbackMessage}</p>
+              ) : null}
             </div>
           </aside>
         </>

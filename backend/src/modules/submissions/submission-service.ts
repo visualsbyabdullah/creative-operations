@@ -61,3 +61,22 @@ export async function publishReviewedSubmission(input:unknown):Promise<ActionRes
   return error?.code==="40001"?{ok:false,code:"stale_update"}:
     error?{ok:false,code:"temporarily_unavailable"}:{ok:true,data:true};
 }
+export async function saveSubmissionFeedback(input:unknown):Promise<ActionResult<true>>{
+  if(!input||typeof input!=="object"||Array.isArray(input))return{ok:false,code:"validation_failed"};
+  const v=input as Record<string,unknown>;
+  if(Object.keys(v).some(k=>!["submissionId","feedback","expectedUpdatedAt","expectedTaskUpdatedAt"].includes(k))||
+    typeof v.submissionId!=="string"||typeof v.feedback!=="string"||
+    v.feedback.trim().length<1||v.feedback.length>4000||
+    typeof v.expectedUpdatedAt!=="string"||typeof v.expectedTaskUpdatedAt!=="string")
+    return{ok:false,code:"validation_failed"};
+  const actor=await getActiveProfile();
+  if(actor.status!=="active"||(actor.profile.role!=="manager"&&actor.profile.role!=="hr"))
+    return{ok:false,code:"forbidden"};
+  const client=await createClient();const{error}=await client.rpc("save_submission_feedback_v2",{
+    p_submission_id:v.submissionId,p_feedback:v.feedback,
+    p_expected_submission_updated_at:v.expectedUpdatedAt,
+    p_expected_task_updated_at:v.expectedTaskUpdatedAt,
+  });
+  return error?.code==="40001"?{ok:false,code:"stale_update"}:
+    error?{ok:false,code:"temporarily_unavailable"}:{ok:true,data:true};
+}

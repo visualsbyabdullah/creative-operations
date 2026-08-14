@@ -17,6 +17,8 @@ export type BusinessRateLimitPolicy =
   | "employee_invitation_retry"
   | "brand_read"
   | "brand_mutation"
+  | "department_read"
+  | "department_mutation"
   | "avatar_upload"
   | "avatar_replace"
   | "avatar_remove"
@@ -30,10 +32,12 @@ export type BusinessRateLimitPolicy =
 export async function enforceBusinessRateLimit(
   policy: BusinessRateLimitPolicy,
   actorId: string,
-  targetDigest?: string,
+  target?: string,
 ) {
   const actorDigest = hmacIdentifier("context", actorId);
-  const identifiers = targetDigest ? [actorDigest, targetDigest] : [actorDigest];
+  const identifiers = target
+    ? [actorDigest, hmacIdentifier("context", target)]
+    : [actorDigest];
   return consumeRateLimit(
     policy satisfies AuthRateLimitPolicy,
     limiterKeyDigest(policy, identifiers),

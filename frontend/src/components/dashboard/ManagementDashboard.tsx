@@ -3,9 +3,11 @@
 import SystemTable from "@frontend/components/ui/SystemTable";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { CircleAlert, Clock3, ExternalLink, ListChecks, Plus, Send, Users } from "lucide-react";
 
+import CalendarDatePill from "@frontend/components/ui/CalendarDatePill";
 import EmployeeHeader from "@frontend/components/layout/EmployeeHeader";
 import EmployeeDetailsDrawer from "@frontend/components/management/EmployeeDetailsDrawer";
 import type { EmployeeProfile } from "@shared/contracts/auth";
@@ -30,6 +32,8 @@ const workloadStatusStyles: Record<string, string> = {
 };
 
 export default function ManagementDashboard({ profile,data }: { profile: EmployeeProfile;data:ManagementDashboardData|null }) {
+  const router = useRouter();
+  const today = new Date().toISOString().slice(0, 10);
   const metrics=data?[
     {label:"Active Tasks",value:String(data.activeTasks),caption:"Across both departments",icon:ListChecks,featured:true},
     {label:"Pending Reviews",value:String(data.pendingReviews),caption:"Awaiting feedback",icon:Clock3,tone:"bg-amber-50 text-amber-600"},
@@ -93,9 +97,7 @@ export default function ManagementDashboard({ profile,data }: { profile: Employe
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <Link href="/employees" className="flex items-center gap-2 rounded-full border border-[#e5e9ef] bg-white px-5 py-2.5 text-sm font-semibold text-[#424852]">
-                <Users size={16} /> Employees
-              </Link>
+              <CalendarDatePill value={today} today={today} onChange={(date) => router.push(`/tasks?date=${date}`)} ariaLabel="Open tasks for date" />
               <Link href="/planner" className="flex items-center gap-2 rounded-full bg-brand-blue-gradient px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-200">
                 <Plus size={16} /> Add Task
               </Link>
@@ -169,7 +171,7 @@ export default function ManagementDashboard({ profile,data }: { profile: Employe
             <article className="rounded-[24px] border border-[#edf0f5] bg-white p-5 shadow-[0_15px_42px_rgba(24,39,75,0.04)] sm:p-6">
   <div className="flex items-center justify-between">
     <div>
-      <h2 className="text-lg font-bold">Review Queue</h2>
+      <h2 className="text-lg font-bold">Submissions</h2>
       <p className="mt-1 text-xs text-[#9299a4]">
         Submissions waiting for review
       </p>

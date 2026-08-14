@@ -2,13 +2,7 @@
 
 import SystemTable from "@frontend/components/ui/SystemTable";
 
-import {
-  MoreHorizontal,
-  Plus,
-  Search,
-  UserRound,
-  X,
-} from "lucide-react";
+import { Eye, Plus, Search, UserRound, X } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import EmployeeDetailsDrawer from "@frontend/components/management/EmployeeDetailsDrawer";
@@ -184,7 +178,7 @@ export default function ManagementEmployees({
     }
   }
 
-  async function deleteEmployee() {
+  async function toggleEmployeeActive() {
     if (!selected) {
       return;
     }
@@ -199,7 +193,7 @@ export default function ManagementEmployees({
       timezone: detail.data.timezone,
       role: detail.data.role,
       department: detail.data.department,
-      isActive: false,
+      isActive: selected.status === "Inactive",
       managerId: detail.data.managerId,
       expectedUpdatedAt: detail.data.updatedAt,
     });
@@ -210,8 +204,8 @@ export default function ManagementEmployees({
     }
   }
 
-  const fields = (
-    <div className="space-y-4">
+  const baseFields = (
+    <>
       <label className="block">
         <span className="text-xs font-bold text-[#4d5560]">Full name</span>
         <input
@@ -254,6 +248,14 @@ export default function ManagementEmployees({
           fullWidth
         />
       </label>
+    </>
+  );
+
+  const addFields = <div className="space-y-4">{baseFields}</div>;
+
+  const editFields = (
+    <div className="space-y-4">
+      {baseFields}
 
       <label className="block">
         <span className="text-xs font-bold text-[#4d5560]">Status</span>
@@ -323,7 +325,7 @@ export default function ManagementEmployees({
                 <th className="px-6 py-4">Employee</th>
                 <th className="px-6 py-4">Role</th>
                 <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4 text-left">Action</th>
+                <th className="px-6 py-4">Action</th>
               </tr>
             </thead>
 
@@ -346,7 +348,7 @@ export default function ManagementEmployees({
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       <div
-                        className={`grid size-10 place-items-center rounded-full ${
+                        className={`grid size-10 shrink-0 place-items-center rounded-full ${
                           member.role === "Graphic Designer"
                             ? "bg-blue-50 text-blue-600"
                             : "bg-violet-50 text-violet-600"
@@ -388,9 +390,10 @@ export default function ManagementEmployees({
                         openEmployee(member.id);
                       }}
                       aria-label={`Open ${member.name} details`}
-                      className="grid size-9 place-items-center rounded-full border border-[#e8ecf2] transition hover:border-[#2f80ed] hover:text-[#2f80ed]"
+                      className="flex items-center gap-2 rounded-full border border-[#e8ecf2] px-4 py-2 text-[11px] font-bold text-[#4f5762] transition hover:border-[#2f80ed] hover:text-[#2f80ed]"
                     >
-                      <MoreHorizontal size={15} />
+                      <Eye size={14} />
+                      View
                     </button>
                   </td>
                 </tr>
@@ -414,7 +417,7 @@ export default function ManagementEmployees({
               </button>
             </div>
 
-            <div className="mt-5">{fields}</div>
+            <div className="mt-5">{addFields}</div>
 
             <button
               type="button"
@@ -432,10 +435,10 @@ export default function ManagementEmployees({
         employee={selected}
         onClose={closeEmployee}
         isEditing={isEditing}
-        editContent={fields}
+        editContent={editFields}
         onEdit={startEdit}
         onSave={saveEmployee}
-        onDelete={deleteEmployee}
+        onDelete={toggleEmployeeActive}
       />
     </ManagementShell>
   );

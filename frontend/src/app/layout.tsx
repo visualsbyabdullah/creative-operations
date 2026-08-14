@@ -3,6 +3,7 @@ import "@fontsource-variable/manrope";
 import "./globals.css";
 
 import AppProviders from "./providers";
+import AgentationDevTool from "@frontend/components/AgentationDevTool";
 import { getActiveProfile } from "@backend/modules/auth/authorization";
 import {
   departmentLabel,
@@ -43,7 +44,8 @@ export default async function RootLayout({
     <html lang="en">
       <body><AppProviders initialEmployee={initialEmployee}>
           {children}
-        </AppProviders></body>
+        </AppProviders>
+        <AgentationDevTool /></body>
     </html>
   );
 }

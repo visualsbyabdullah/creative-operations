@@ -40,6 +40,8 @@ export const BUSINESS_RATE_LIMIT_POLICIES = {
   employee_invitation_retry: { limit: 20, windowSeconds: 3600 },
   brand_read: { limit: 120, windowSeconds: 60 },
   brand_mutation: { limit: 30, windowSeconds: 3600 },
+  department_read: { limit: 120, windowSeconds: 60 },
+  department_mutation: { limit: 30, windowSeconds: 3600 },
   avatar_upload: { limit: 10, windowSeconds: 600 },
   avatar_replace: { limit: 10, windowSeconds: 600 },
   avatar_remove: { limit: 10, windowSeconds: 600 },

@@ -1,8 +1,42 @@
-﻿# Creative Operations — Codex Project Rules
+﻿# Creative Operations — Agent Project Rules
+
+## Project overview
+
+Creative Operations is a Next.js 16 application backed by Supabase Auth, PostgreSQL, Row Level Security, and private Storage. The repository is a single deployable application with explicit frontend, backend, shared-contract, and database boundaries.
+
+- Frontend UI and Next.js routes: `frontend/src/`
+- Backend business logic: `backend/src/modules/`
+- HTTP handlers: `backend/src/api/`
+- Versioned route adapters: `frontend/src/app/api/v1/`
+- Security internals: `backend/src/security/`
+- Supabase clients: `backend/src/supabase/`
+- Shared serializable contracts: `backend/src/shared/`
+- Database and RLS migrations: `backend/supabase/migrations/`
+- Archived code policy: `code-bin/`
+- See `ARCHITECTURE.md` and `backend/docs/API.md` for details.
+
+## Common commands
+
+Run all commands from the repository root:
+
+```bash
+npm run dev          # next dev frontend
+npm run typecheck    # tsc --noEmit
+npm run lint         # eslint
+npm test             # vitest run
+npm run build        # next build frontend
+npm run supabase:status     # supabase --workdir backend status
+npm run supabase:migrations # supabase --workdir backend migration list
+```
+
+Environment files live in the Next.js project root `frontend/`:
+
+- `frontend/.env.local` — runtime credentials (never committed).
+- `frontend/.env.example` — tracked template with names and safe placeholders only.
 
 ## Working branch
 
-- Work only on the `backend-development` branch.
+- Work only on the active development branch (`refactor/frontend-backend-architecture`).
 - Never modify `main` or `backup/frontend-complete`.
 - Do not commit, push, merge, or change branches unless explicitly instructed.
 - Before every task, run `git status` and confirm the current branch.
@@ -95,7 +129,7 @@ Rules:
 - Never place secrets in `NEXT_PUBLIC_` variables.
 - Never commit `.env`, `.env.local`, production keys, tokens, passwords, or database credentials.
 - Server administrative clients must remain in server-only modules.
-- Create or update `.env.example` using variable names and safe placeholders only.
+- Update `frontend/.env.example` with variable names and safe placeholders only.
 
 ## API security
 
@@ -115,6 +149,14 @@ Rules:
 - Use generated object paths and short-lived signed URLs where appropriate.
 - Prevent users from accessing another user's file by changing an object path.
 
+## Code style
+
+- Follow existing patterns and conventions in the files you touch.
+- Use strict TypeScript; do not weaken type safety.
+- Do not add code comments unless asked.
+- Keep server-only logic in server-only modules; never expose secrets to the client.
+- Match the repo's existing error-handling and naming conventions.
+
 ## Change discipline
 
 Before editing:
@@ -128,8 +170,8 @@ Before editing:
 After editing:
 
 1. Run relevant tests.
-2. Run `npx tsc --noEmit`.
-3. Run lint when configured.
+2. Run `npm run typecheck`.
+3. Run `npm run lint` when configured.
 4. Run `npm run build`.
 5. Review `git diff`.
 6. Report every created, modified, and deleted file.
